@@ -3,6 +3,7 @@ from ui_remark_dialog import Ui_RemarkDialog
 
 
 class RemarkDialog(QDialog):
+    """Окно редактирования замечания."""
     def __init__(self, parent=None, remark_text=""):
         super().__init__(parent)
         self.ui = Ui_RemarkDialog()

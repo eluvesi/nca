@@ -8,7 +8,7 @@ from remark_dialog import RemarkDialog
 
 
 class MainWindow(QMainWindow):
-    '''Главное окно приложения.'''
+    """Главное окно приложения."""
     def __init__(self):
         super().__init__()
         self.ui = Ui_MainWindow()
