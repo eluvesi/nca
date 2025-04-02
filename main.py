@@ -3,6 +3,7 @@ import json
 import os
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox, QListWidget
+from PyQt5.QtCore import QSettings
 from ui_main_window import Ui_MainWindow
 from remark_dialog import RemarkDialog
 
@@ -14,23 +15,34 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
-        self.current_file = None  # Текущий (открытый) файл
-        self.is_modified = False  # Флаг изменений
+        self.is_modified = False  # Флаг несохранённых изменений в текущем файле
 
-        self.statusBar().showMessage(
-            "Создан новый файл. Вы можете загрузить замечания из файла или добавить их по одному вручную."
-        )
+        settings = QSettings("eluvesi", "NCA")
+        last_file = settings.value("last_file", "")  # Узнаём путь к последнему открытому файлу
+
+        if last_file and os.path.exists(last_file):  # Если такой файл существует
+            self.current_file = last_file  # В качестве текущего файла последний открытый файл
+            self.load_from_file()  # Загружаем замечания из файла
+            self.update_window_title()
+            self.statusBar().showMessage( f"Открыт файл: {self.current_file}.", 5000)
+        else:
+            self.current_file = None  # В качестве текущего файла None - создан новый (ещё несохранённый) файл
+            self.statusBar().showMessage(
+                "Создан новый файл. Вы можете загрузить замечания из файла или добавить их по одному вручную.", 5000
+            )
 
         self.ui.fileCreateButton.clicked.connect(self.create_new_file)
         self.ui.fileOpenButton.clicked.connect(self.open_file)
         self.ui.fileSaveButton.clicked.connect(self.save_file)
         self.ui.fileSaveAsButton.clicked.connect(self.save_file_as)
+
+        self.ui.remarkListWidget.setSelectionMode(QListWidget.ExtendedSelection)  # Поддержка множественного выделения
         self.ui.remarkListWidget.itemClicked.connect(
             lambda: self.statusBar().showMessage("Замечание выбрано, чтобы скопировать - кликните дважды", 3000)
         )
-        self.ui.remarkListWidget.setSelectionMode(QListWidget.ExtendedSelection) # поддержка множественного выделения
         self.ui.remarkListWidget.itemDoubleClicked.connect(self.copy_remark)
         self.ui.remarkListWidget.itemSelectionChanged.connect(self.toggle_remark_buttons)
+
         self.ui.remarkAddButton.clicked.connect(self.add_remark)
         self.ui.remarkRemoveButton.clicked.connect(self.remove_remark)
         self.ui.remarkEditButton.clicked.connect(self.edit_remark)
@@ -78,6 +90,8 @@ class MainWindow(QMainWindow):
             self.current_file = filename  # Обновляем текущий файл
             self.is_modified = False  # Открыт другой файл, изменений больше нет
             self.update_window_title()  # Обновляем заголовок окна
+            settings = QSettings("eluvesi", "NCA")
+            settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
             self.ui.remarkListWidget.clear()  # Очищаем список замечаний
             self.load_from_file()  # Загружаем новый список замечаний из файла
 
@@ -92,9 +106,9 @@ class MainWindow(QMainWindow):
 
     def save_file(self):
         """Сохраняет изменения в текущем файле или вызывает Save As, если никакой файл не открыт."""
-        if self.current_file:  # Проверяем, открыт ли какой-то файл
-            self.save_to_file(self.current_file)  # Сохраняем существующий файл
-        else:
+        if self.current_file:  # Если не None, значит был открыт какой-то файл
+            self.save_to_file(self.current_file)  # Сохраняем изменения в этом файле
+        else:  # Если None, значит был создан новый файл
             self.save_file_as()  # Сохраняем файл как новый
 
     def save_file_as(self):
@@ -105,15 +119,16 @@ class MainWindow(QMainWindow):
         if filename:
             self.save_to_file(filename)
             self.current_file = filename  # Обновляем текущий файл
+            self.is_modified = False  # Файл сохранён, изменений больше нет
             self.update_window_title()  # Обновляем заголовок окна
+            settings = QSettings("eluvesi", "NCA")
+            settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
 
     def save_to_file(self, filename):
         """Сохраняет список замечаний в файл."""
         with open(filename, "w", encoding="utf-8") as file:
             for row in range(self.ui.remarkListWidget.count()):
                 file.write(self.ui.remarkListWidget.item(row).text() + "\n")
-        self.is_modified = False  # Файл сохранён, изменений больше нет
-        self.update_window_title()  # Обновляем заголовок
         self.statusBar().showMessage(f"Замечания сохранены в {filename}.", 3000)
 
     def add_remark(self):
