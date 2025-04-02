@@ -2,7 +2,7 @@ import sys
 import json
 import os
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox, QListWidget
 from ui_main_window import Ui_MainWindow
 from remark_dialog import RemarkDialog
 
@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
         self.ui.remarkListWidget.itemClicked.connect(
             lambda: self.statusBar().showMessage("Замечание выбрано, чтобы скопировать - кликните дважды", 3000)
         )
+        self.ui.remarkListWidget.setSelectionMode(QListWidget.ExtendedSelection) # поддержка множественного выделения
         self.ui.remarkListWidget.itemDoubleClicked.connect(self.copy_remark)
         self.ui.remarkListWidget.itemSelectionChanged.connect(self.toggle_remark_buttons)
         self.ui.remarkAddButton.clicked.connect(self.add_remark)
@@ -150,10 +151,11 @@ class MainWindow(QMainWindow):
                     self.statusBar().showMessage("Замечание обновлено.", 3000)
 
     def copy_remark(self):
-        """Копирует выбранное замечание в буфер обмена."""
+        """Копирует выбранные замечания в буфер обмена."""
         selected_items = self.ui.remarkListWidget.selectedItems()
         if selected_items:
-            QApplication.clipboard().setText(selected_items[0].text())
+            remarks_text = "\n".join(item.text() for item in selected_items)  # Собираем все выбранные замечания
+            QApplication.clipboard().setText(remarks_text)  # Копируем их в буфер обмена
             self.statusBar().showMessage("Замечание скопировано в буфер обмена.", 3000)
 
     def clear_remark_list(self):
