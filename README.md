@@ -26,6 +26,7 @@
 Требования:
 - Python 3.9+
 - PyQt5 (5.15+)
+- Git (для установки через git clone)
 
 Действия:
 1. Клонировать репозиторий
@@ -33,6 +34,7 @@
 git clone https://github.com/eluvesi/nca.git
 cd nca
 ```
+>Если Git не установлен, можно скачать ZIP-архив проекта с GitHub и распаковать вручную.
 2. Установить PyQt5
 ```sh
 pip install PyQt5
