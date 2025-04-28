@@ -42,22 +42,7 @@ QListWidget::item:selected {
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QListWidget" name="remarkListWidget">
-    <property name="geometry">
-     <rect>
-      <x>25</x>
-      <y>50</y>
-      <width>751</width>
-      <height>481</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <pointsize>10</pointsize>
-     </font>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="appHelpButton">
+   <widget class="QPushButton" name="helpButton">
     <property name="geometry">
      <rect>
       <x>330</x>
@@ -377,7 +362,7 @@ QListWidget::item:selected {
      </size>
     </property>
    </widget>
-   <widget class="QPushButton" name="appSettingsButton">
+   <widget class="QPushButton" name="categoryEditButton">
     <property name="geometry">
      <rect>
       <x>280</x>
@@ -390,14 +375,14 @@ QListWidget::item:selected {
      <cursorShape>PointingHandCursor</cursorShape>
     </property>
     <property name="toolTip">
-     <string>Открыть настройки приложения</string>
+     <string>Редактировать текущую категорию</string>
     </property>
     <property name="text">
      <string/>
     </property>
     <property name="icon">
      <iconset>
-      <normaloff>icons/settings.png</normaloff>icons/settings.png</iconset>
+      <normaloff>icons/category-edit.png</normaloff>icons/category-edit.png</iconset>
     </property>
     <property name="iconSize">
      <size>
@@ -461,7 +446,7 @@ QListWidget::item:selected {
      <enum>Qt::Vertical</enum>
     </property>
    </widget>
-   <widget class="QPushButton" name="CategorySettingsButton">
+   <widget class="QPushButton" name="categoryAddButton">
     <property name="geometry">
      <rect>
       <x>200</x>
@@ -474,14 +459,14 @@ QListWidget::item:selected {
      <cursorShape>PointingHandCursor</cursorShape>
     </property>
     <property name="toolTip">
-     <string>Открыть настройки категорий</string>
+     <string>Добавить категорию</string>
     </property>
     <property name="text">
      <string/>
     </property>
     <property name="icon">
      <iconset>
-      <normaloff>icons/tab-edit.png</normaloff>icons/tab-edit.png</iconset>
+      <normaloff>icons/category-add.png</normaloff>icons/category-add.png</iconset>
     </property>
     <property name="iconSize">
      <size>
@@ -490,7 +475,7 @@ QListWidget::item:selected {
      </size>
     </property>
    </widget>
-   <widget class="QPushButton" name="TagSettingsButton">
+   <widget class="QPushButton" name="categoryRemoveButton">
     <property name="geometry">
      <rect>
       <x>240</x>
@@ -503,14 +488,14 @@ QListWidget::item:selected {
      <cursorShape>PointingHandCursor</cursorShape>
     </property>
     <property name="toolTip">
-     <string>Открыть настройки тегов</string>
+     <string>Удалить текущую категорию</string>
     </property>
     <property name="text">
      <string/>
     </property>
     <property name="icon">
      <iconset>
-      <normaloff>icons/tag-edit.png</normaloff>icons/tag-edit.png</iconset>
+      <normaloff>icons/category-remove.png</normaloff>icons/category-remove.png</iconset>
     </property>
     <property name="iconSize">
      <size>
@@ -531,6 +516,45 @@ QListWidget::item:selected {
     <property name="orientation">
      <enum>Qt::Vertical</enum>
     </property>
+   </widget>
+   <widget class="QTabWidget" name="tabWidget">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>50</y>
+      <width>741</width>
+      <height>481</height>
+     </rect>
+    </property>
+    <property name="tabPosition">
+     <enum>QTabWidget::North</enum>
+    </property>
+    <property name="tabShape">
+     <enum>QTabWidget::Rounded</enum>
+    </property>
+    <property name="currentIndex">
+     <number>0</number>
+    </property>
+    <widget class="QWidget" name="tab">
+     <attribute name="title">
+      <string>Все</string>
+     </attribute>
+     <widget class="QListWidget" name="remarkListWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>737</width>
+        <height>447</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+     </widget>
+    </widget>
    </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
