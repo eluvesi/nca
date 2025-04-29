@@ -45,7 +45,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="helpButton">
     <property name="geometry">
      <rect>
-      <x>330</x>
+      <x>310</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -74,7 +74,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="searchButton">
     <property name="geometry">
      <rect>
-      <x>740</x>
+      <x>760</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -103,9 +103,9 @@ QListWidget::item:selected {
    <widget class="QLineEdit" name="searchLineEdit">
     <property name="geometry">
      <rect>
-      <x>380</x>
+      <x>360</x>
       <y>10</y>
-      <width>361</width>
+      <width>401</width>
       <height>31</height>
      </rect>
     </property>
@@ -121,7 +121,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="fileCreateButton">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>10</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -150,7 +150,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="fileOpenButton">
     <property name="geometry">
      <rect>
-      <x>70</x>
+      <x>50</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -182,7 +182,7 @@ QListWidget::item:selected {
     </property>
     <property name="geometry">
      <rect>
-      <x>740</x>
+      <x>760</x>
       <y>540</y>
       <width>31</width>
       <height>31</height>
@@ -211,7 +211,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="remarkAddButton">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>10</x>
       <y>540</y>
       <width>31</width>
       <height>31</height>
@@ -243,7 +243,7 @@ QListWidget::item:selected {
     </property>
     <property name="geometry">
      <rect>
-      <x>70</x>
+      <x>50</x>
       <y>540</y>
       <width>31</width>
       <height>31</height>
@@ -275,7 +275,7 @@ QListWidget::item:selected {
     </property>
     <property name="geometry">
      <rect>
-      <x>110</x>
+      <x>90</x>
       <y>540</y>
       <width>31</width>
       <height>31</height>
@@ -307,7 +307,7 @@ QListWidget::item:selected {
     </property>
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>130</x>
       <y>540</y>
       <width>31</width>
       <height>31</height>
@@ -336,7 +336,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="fileSaveButton">
     <property name="geometry">
      <rect>
-      <x>110</x>
+      <x>90</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -365,7 +365,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="categoryEditButton">
     <property name="geometry">
      <rect>
-      <x>280</x>
+      <x>260</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -375,7 +375,7 @@ QListWidget::item:selected {
      <cursorShape>PointingHandCursor</cursorShape>
     </property>
     <property name="toolTip">
-     <string>Редактировать текущую категорию</string>
+     <string>Переименовать текущую категорию</string>
     </property>
     <property name="text">
      <string/>
@@ -394,7 +394,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="fileSaveAsButton">
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>130</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -423,7 +423,7 @@ QListWidget::item:selected {
    <widget class="Line" name="line">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>160</x>
       <y>10</y>
       <width>20</width>
       <height>31</height>
@@ -436,7 +436,7 @@ QListWidget::item:selected {
    <widget class="Line" name="line_2">
     <property name="geometry">
      <rect>
-      <x>310</x>
+      <x>290</x>
       <y>10</y>
       <width>20</width>
       <height>31</height>
@@ -449,7 +449,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="categoryAddButton">
     <property name="geometry">
      <rect>
-      <x>200</x>
+      <x>180</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -478,7 +478,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="categoryRemoveButton">
     <property name="geometry">
      <rect>
-      <x>240</x>
+      <x>220</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -507,7 +507,7 @@ QListWidget::item:selected {
    <widget class="Line" name="line_3">
     <property name="geometry">
      <rect>
-      <x>360</x>
+      <x>340</x>
       <y>10</y>
       <width>20</width>
       <height>31</height>
@@ -520,9 +520,9 @@ QListWidget::item:selected {
    <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>10</x>
       <y>50</y>
-      <width>741</width>
+      <width>781</width>
       <height>481</height>
      </rect>
     </property>
@@ -535,23 +535,18 @@ QListWidget::item:selected {
     <property name="currentIndex">
      <number>0</number>
     </property>
-    <widget class="QWidget" name="tab">
+    <widget class="QWidget" name="allTab">
      <attribute name="title">
       <string>Все</string>
      </attribute>
-     <widget class="QListWidget" name="remarkListWidget">
+     <widget class="QListWidget" name="allTabListWidget">
       <property name="geometry">
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>737</width>
+        <width>777</width>
         <height>447</height>
        </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>10</pointsize>
-       </font>
       </property>
      </widget>
     </widget>

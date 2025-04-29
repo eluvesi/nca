@@ -11,7 +11,6 @@ class RemarkDialog(QDialog):
 
         self.ui.remarkEditLine.setText(remark_text)
         #self.ui.categoryComboBox.setCurrentText(category)
-        #self.ui.tagListWidget.addItems(tags)
 
         self.ui.saveButton.clicked.connect(self.accept)
         self.ui.cancelButton.clicked.connect(self.reject)
@@ -20,5 +19,4 @@ class RemarkDialog(QDialog):
         """Возвращает введённые данные: текст замечания, категорию, теги"""
         text = self.ui.remarkEditLine.text()
         #category = self.ui.categoryComboBox.currentText()
-        #tags = [self.ui.tagListWidget.item(i).text() for i in range(self.ui.tagListWidget.count())]
-        return text#, category, tags
+        return text
