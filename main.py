@@ -36,15 +36,15 @@ class MainWindow(QMainWindow):
         self.ui.fileSaveButton.clicked.connect(self.save_file)
         self.ui.fileSaveAsButton.clicked.connect(self.save_file_as)
 
-        self.ui.remarkListWidget.setSelectionMode(QListWidget.ExtendedSelection)  # Поддержка множественного выделения
-        self.ui.remarkListWidget.itemClicked.connect(
+        self.ui.allTabListWidget.setSelectionMode(QListWidget.ExtendedSelection)  # Поддержка множественного выделения
+        self.ui.allTabListWidget.itemClicked.connect(
             lambda: self.statusBar().showMessage("Замечание выбрано, ПКМ чтобы скопировать выбранные замечания.", 3000)
         )
-        self.ui.remarkListWidget.setContextMenuPolicy(Qt.CustomContextMenu)  # Поддержка копирования с помощью ПКМ
-        self.ui.remarkListWidget.customContextMenuRequested.connect(
-            lambda: self.copy_remark() if self.ui.remarkListWidget.selectedItems() else None
+        self.ui.allTabListWidget.setContextMenuPolicy(Qt.CustomContextMenu)  # Поддержка копирования с помощью ПКМ
+        self.ui.allTabListWidget.customContextMenuRequested.connect(
+            lambda: self.copy_remark() if self.ui.allTabListWidget.selectedItems() else None
         )
-        self.ui.remarkListWidget.itemSelectionChanged.connect(self.toggle_remark_buttons)
+        self.ui.allTabListWidget.itemSelectionChanged.connect(self.toggle_remark_buttons)
 
         self.ui.remarkAddButton.clicked.connect(self.add_remark)
         self.ui.remarkRemoveButton.clicked.connect(self.remove_remark)
@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         self.current_file = None  # Обновляем текущий файл
         self.is_modified = False  # Создан новый файл, изменений больше нет
         self.update_window_title()  # Обновляем заголовок окна
-        self.ui.remarkListWidget.clear()  # Очищаем список замечаний
+        self.ui.allTabListWidget.clear()  # Очищаем список замечаний
         self.statusBar().showMessage("Создан новый файл. Не забудьте сохранить изменения.", 3000)
 
     def open_file(self):
@@ -95,14 +95,14 @@ class MainWindow(QMainWindow):
             self.update_window_title()  # Обновляем заголовок окна
             settings = QSettings("eluvesi", "NCA")
             settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
-            self.ui.remarkListWidget.clear()  # Очищаем список замечаний
+            self.ui.allTabListWidget.clear()  # Очищаем список замечаний
             self.load_from_file()  # Загружаем новый список замечаний из файла
 
     def load_from_file(self):
         """Загружает замечания из открытого файла и добавляет их в список."""
         try:
             with open(self.current_file, "r", encoding="utf-8") as file:
-                self.ui.remarkListWidget.addItems(file.read().splitlines())
+                self.ui.allTabListWidget.addItems(file.read().splitlines())
                 self.statusBar().showMessage(f"Замечания загружены из {self.current_file}.", 3000)
         except FileNotFoundError:
             self.statusBar().showMessage(f"Не удалось найти файл {self.current_file}.", 3000)
@@ -130,8 +130,8 @@ class MainWindow(QMainWindow):
     def save_to_file(self, filename):
         """Сохраняет список замечаний в файл."""
         with open(filename, "w", encoding="utf-8") as file:
-            for row in range(self.ui.remarkListWidget.count()):
-                file.write(self.ui.remarkListWidget.item(row).text() + "\n")
+            for row in range(self.ui.allTabListWidget.count()):
+                file.write(self.ui.allTabListWidget.item(row).text() + "\n")
         self.statusBar().showMessage(f"Замечания сохранены в {filename}.", 3000)
 
     def add_remark(self):
@@ -140,24 +140,24 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             text = dialog.get_data() # text, category, tags
             if text:
-                self.ui.remarkListWidget.addItem(text)
+                self.ui.allTabListWidget.addItem(text)
                 self.is_modified = True  # Файл изменился
                 self.update_window_title()  # Обновляем заголовок
                 self.statusBar().showMessage("Добавлено новое замечание.", 3000)
 
     def remove_remark(self):
         """Удаляет выбранное замечание из списка."""
-        selected_items = self.ui.remarkListWidget.selectedItems()
+        selected_items = self.ui.allTabListWidget.selectedItems()
         if selected_items:
             for item in selected_items:
-                self.ui.remarkListWidget.takeItem(self.ui.remarkListWidget.row(item))
+                self.ui.allTabListWidget.takeItem(self.ui.allTabListWidget.row(item))
             self.is_modified = True  # Файл изменился
             self.update_window_title()  # Обновляем заголовок
             self.statusBar().showMessage("Замечание удалено.", 3000)
 
     def edit_remark(self):
         """Открывает окно для редактирования выбранного замечания."""
-        selected_item = self.ui.remarkListWidget.currentItem()
+        selected_item = self.ui.allTabListWidget.currentItem()
         if selected_item:
             dialog = RemarkDialog(self, remark_text=selected_item.text())
             if dialog.exec():
@@ -170,7 +170,7 @@ class MainWindow(QMainWindow):
 
     def copy_remark(self):
         """Копирует выбранные замечания в буфер обмена."""
-        selected_items = self.ui.remarkListWidget.selectedItems()
+        selected_items = self.ui.allTabListWidget.selectedItems()
         if selected_items:
             remarks_text = "\n".join(item.text() for item in selected_items)  # Собираем все выбранные замечания
             QApplication.clipboard().setText(remarks_text)  # Копируем их в буфер обмена
@@ -178,17 +178,17 @@ class MainWindow(QMainWindow):
 
     def clear_remark_list(self):
         """Очищает весь список замечаний."""
-        if self.ui.remarkListWidget.count() > 0:  # Только если есть элементы
-            self.ui.remarkListWidget.clear()
+        if self.ui.allTabListWidget.count() > 0:  # Только если есть элементы
+            self.ui.allTabListWidget.clear()
             self.is_modified = True  # Файл изменился
             self.update_window_title()  # Обновляем заголовок
             self.statusBar().showMessage("Список замечаний очищен.", 3000)
 
     def toggle_remark_buttons(self):
         """Включает (отключает) кнопки взаимодействия с замечанием, если сейчас оно (не) выбрано."""
-        self.ui.remarkRemoveButton.setEnabled(bool(self.ui.remarkListWidget.selectedItems()))
-        self.ui.remarkEditButton.setEnabled(bool(self.ui.remarkListWidget.selectedItems()))
-        self.ui.remarkCopyButton.setEnabled(bool(self.ui.remarkListWidget.selectedItems()))
+        self.ui.remarkRemoveButton.setEnabled(bool(self.ui.allTabListWidget.selectedItems()))
+        self.ui.remarkEditButton.setEnabled(bool(self.ui.allTabListWidget.selectedItems()))
+        self.ui.remarkCopyButton.setEnabled(bool(self.ui.allTabListWidget.selectedItems()))
 
     def update_window_title(self):
         """Обновляет заголовок окна, отображает название текущего файла и звёздочку."""
