@@ -362,7 +362,7 @@ QListWidget::item:selected {
      </size>
     </property>
    </widget>
-   <widget class="QPushButton" name="categoryEditButton">
+   <widget class="QPushButton" name="tabEditButton">
     <property name="geometry">
      <rect>
       <x>260</x>
@@ -446,7 +446,7 @@ QListWidget::item:selected {
      <enum>Qt::Vertical</enum>
     </property>
    </widget>
-   <widget class="QPushButton" name="categoryAddButton">
+   <widget class="QPushButton" name="tabAddButton">
     <property name="geometry">
      <rect>
       <x>180</x>
@@ -475,7 +475,7 @@ QListWidget::item:selected {
      </size>
     </property>
    </widget>
-   <widget class="QPushButton" name="categoryRemoveButton">
+   <widget class="QPushButton" name="tabRemoveButton">
     <property name="geometry">
      <rect>
       <x>220</x>
