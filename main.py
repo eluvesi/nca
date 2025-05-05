@@ -19,9 +19,8 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         self.is_modified = False  # Флаг несохранённых изменений в текущем файле
-
-        settings = QSettings("eluvesi", "NCA")
-        last_file = settings.value("last_file", "")  # Узнаём путь к последнему открытому файлу
+        self.settings = QSettings("eluvesi", "NCA")  # Используем QSettings для хранения последнего открытого файла
+        last_file = self.settings.value("last_file", "")  # Узнаём путь к последнему открытому файлу
 
         if last_file and os.path.exists(last_file):  # Если такой файл существует
             self.current_file = last_file  # В качестве текущего файла последний открытый файл
@@ -37,38 +36,23 @@ class MainWindow(QMainWindow):
                 "Создан новый файл. Вы можете загрузить замечания из файла или добавить их по одному вручную.", 5000
             )
 
+        # Подключаем действия при нажатии на кнопки в верхнем меню
         self.ui.fileCreateButton.clicked.connect(self.create_new_file)
         self.ui.fileOpenButton.clicked.connect(self.open_file)
         self.ui.fileSaveButton.clicked.connect(self.save_file)
         self.ui.fileSaveAsButton.clicked.connect(self.save_file_as)
-
-        self.ui.allTabListWidget.setSelectionMode(QListWidget.ExtendedSelection)  # Поддержка множественного выделения
-        self.ui.allTabListWidget.itemClicked.connect(
-            lambda: self.statusBar().showMessage("Замечание выбрано, ПКМ чтобы скопировать выбранные замечания.", 3000)
-        )
-        self.ui.allTabListWidget.setContextMenuPolicy(Qt.CustomContextMenu)  # Поддержка копирования с помощью ПКМ
-        self.ui.allTabListWidget.customContextMenuRequested.connect(
-            lambda: self.copy_remark() if self.ui.allTabListWidget.selectedItems() else None
-        )
-        self.ui.allTabListWidget.itemSelectionChanged.connect(self.toggle_remark_buttons)
-
+        # Подключаем реакции на взаимодействие пользователя со списками (клики, выделения)
+        self.update_tab_connections()  # На изначально открытой вкладке "Все"
+        self.ui.tabWidget.currentChanged.connect(self.update_tab_connections)  # И на других вкладках при переходе
+        # Подключаем действия при нажатии на кнопки под списком
         self.ui.remarkAddButton.clicked.connect(self.add_remark)
         self.ui.remarkRemoveButton.clicked.connect(self.remove_remark)
         self.ui.remarkEditButton.clicked.connect(self.edit_remark)
         self.ui.remarkCopyButton.clicked.connect(self.copy_remark)
         self.ui.remarkListClearButton.clicked.connect(self.clear_remark_list)
 
-    def clear_all_lists(self):
-        """Удаляет все замечания и сбрасывает вкладки категорий"""
-        # Очищаем общий список
-        self.ui.allTabListWidget.clear()
-        # Удаляем все вкладки категорий
-        for i in reversed(range(self.ui.tabWidget.count())):
-            self.ui.tabWidget.removeTab(i)
-
     def create_new_file(self):
         """Очищает список замечаний и сбрасывает переменную, хранящую путь к текущему файлу."""
-
         if self.is_modified:  # Проверяем, были ли изменения
             reply = QMessageBox.question(
                 self,
@@ -105,12 +89,13 @@ class MainWindow(QMainWindow):
             self, "Выберите файл с замечаниями", "", "Файлы замечаний (*.txt *.json)"
         )
         if filename:
+            # Обновляем состояние
             self.current_file = filename  # Обновляем текущий файл
             self.is_modified = False  # Открыт другой файл, изменений больше нет
             self.update_window_title()  # Обновляем заголовок окна
-            settings = QSettings("eluvesi", "NCA")
-            settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
+            self.settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
             self.clear_all_lists()  # Очищаем список замечаний
+            # Загружаем по-разному в зависимости от формата
             if filename.endswith(".txt"):  # Загружаем новый список замечаний из txt-файла
                 self.load_from_txt()
             elif filename.endswith(".json"):  # Загружаем новый список замечаний из json-файла
@@ -120,7 +105,13 @@ class MainWindow(QMainWindow):
         """Загружает замечания из txt-файла и добавляет их в список."""
         try:
             with open(self.current_file, "r", encoding="utf-8") as file:
-                self.ui.allTabListWidget.addItems(file.read().splitlines())
+                # Так как .txt-файлы не поддерживают категории, все замечания заносим в "Без категории"
+                tab_list_widget = QListWidget()
+                self.ui.tabWidget.addTab(tab_list_widget, "Без категории")
+                # Каждое замечание добавляем сразу в два списка
+                remarks = file.read().splitlines()
+                tab_list_widget.addItems(remarks)  # В список на вкладке "Без категории"
+                self.ui.allTabListWidget.addItems(remarks)  # В список на вкладке "Все"
                 self.statusBar().showMessage(f"Замечания загружены из {self.current_file}.", 3000)
         except FileNotFoundError:
             self.statusBar().showMessage(f"Не удалось найти файл {self.current_file}.", 3000)
@@ -130,37 +121,27 @@ class MainWindow(QMainWindow):
         try:
             with open(self.current_file, "r", encoding="utf-8") as file:
                 data = json.load(file)
-                # Очистка старых вкладок
-                self.ui.tabWidget.clear()
-
-                # Добавляем вкладку "Все"
-                all_tab = QListWidget()
-                self.ui.allTabListWidget = all_tab
-                self.ui.tabWidget.addTab(all_tab, "Все")
-
-                # Добавляем категории
+                # Для каждой категории создаём вкладку и добавляем туда замечания
                 for category, remarks in data.items():
+                    # Создаем вкладку со списком замечаний для каждой категории
                     tab_list_widget = QListWidget()
                     self.ui.tabWidget.addTab(tab_list_widget, category)
+                    # Каждое замечание добавляем сразу в два списка
                     for remark in remarks:
-                        tab_list_widget.addItem(remark)
-                        self.ui.allTabListWidget.addItem(remark)
-
+                        tab_list_widget.addItem(remark)  # В список на вкладке категории
+                        self.ui.allTabListWidget.addItem(remark)  # И в список на вкладке "Все"
                 self.statusBar().showMessage(f"Замечания загружены из {self.current_file}.", 3000)
-
         except (FileNotFoundError, json.JSONDecodeError):
             self.statusBar().showMessage(f"Не удалось найти файл {self.current_file}.", 3000)
 
     def save_file(self):
         """Сохраняет изменения в текущем файле. Если файл .txt и есть категории — предупреждает о потере категорий."""
-        if self.current_file:
-            file_ext = os.path.splitext(self.current_file)[1].lower()
-            has_categories = self.ui.tabWidget.tabBar().count() > 1  # Проверка наличия вкладок помимо "Все"
-
-            if file_ext == ".json":
+        if self.current_file:  # Если не None, значит был открыт какой-то файл, сохраним изменения
+            if self.current_file.endswith(".json"):  # Если .json - сохраняем в json
                 self.save_to_json(self.current_file)
-            elif file_ext == ".txt":
-                if has_categories:
+            elif self.current_file.endswith(".txt"):  # Если .txt, произойдёт потеря категорий, проверим их наличие
+                has_categories = self.ui.tabWidget.tabBar().count() > 1  # Проверка наличия вкладок помимо "Все"
+                if has_categories:  # Если они были, спрашиваем пользователя, готов ли он их потерять
                     reply = QMessageBox.warning(
                         self,
                         "Потеря категорий",
@@ -171,61 +152,28 @@ class MainWindow(QMainWindow):
                     )
                     if reply == QMessageBox.No:
                         return  # Пользователь отменил сохранение
+                # Если пользователь подтвердил сохранение, либо категорий не было, то сохраняем в .txt
                 self.save_to_txt(self.current_file)
-
+            # Обновляем состояние
             self.is_modified = False  # Файл сохранён, изменений больше нет
             self.update_window_title()  # Обновляем заголовок окна
-        else:
-            self.save_file_as()
-
-    def save_to_json(self, file_path):
-        """Сохраняет замечания из всех вкладок (кроме 'Все') в JSON-формате."""
-        data = {}
-
-        for i in range(self.ui.tabWidget.count()):
-            category_name = self.ui.tabWidget.tabText(i)
-            if category_name == "Все":
-                continue  # Вкладку 'Все' не сохраняем отдельно
-
-            list_widget = self.ui.tabWidget.widget(i)
-            items = []
-            for j in range(list_widget.count()):
-                item_text = list_widget.item(j).text()
-                items.append(item_text)
-
-            data[category_name] = items  # Используем категорию как ключ в data
-
-        try:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=4)
-            self.statusBar().showMessage(f"Замечания сохранены в {file_path}.", 3000)
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Ошибка при сохранении",
-                f"Не удалось сохранить файл:\n{str(e)}"
-            )
+        else:  # Если None, значит был создан новый файл
+            self.save_file_as()  # Предлагаем пользователю сохранить файл как (выбрать имя для сохранения)
 
     def save_file_as(self):
         """Открывает диалог для сохранения файла с новым именем."""
         # Открытие диалога для выбора пути и формата файла
-        filename, file_filter = QFileDialog.getSaveFileName(
+        filename, file_ext = QFileDialog.getSaveFileName(
             self, "Сохранить как", "", "Текстовые файлы (*.txt);;JSON-файлы (*.json)"
         )
-
-        if filename:
-            # Определяем формат, в который нужно сохранить
-            if file_filter == "JSON-файлы (*.json)":
+        if filename:  # Если путь валидный, определяем формат, в который нужно сохранить
+            if file_ext == "JSON-файлы (*.json)":
+                # Если .json - сохраняем в json
                 self.save_to_json(filename)
-                self.current_file = filename  # Обновляем текущий файл
-                self.is_modified = False  # Файл сохранён, изменений больше нет
-                self.update_window_title()  # Обновляем заголовок окна
-                settings = QSettings("eluvesi", "NCA")
-                settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
-            elif file_filter == "Текстовые файлы (*.txt)":
-                # Проверка на наличие категорий перед сохранением в формат TXT
-                has_categories = self.ui.tabWidget.tabBar().count() > 1
-                if has_categories:
+            elif file_ext == "Текстовые файлы (*.txt)":
+                # Если .txt, может произойти потеря категорий, проверим их наличие
+                has_categories = self.ui.tabWidget.tabBar().count() > 1  # Проверка наличия вкладок помимо "Все"
+                if has_categories:  # Если они были, спрашиваем пользователя, готов ли он их потерять
                     reply = QMessageBox.warning(
                         self,
                         "Потеря категорий",
@@ -235,52 +183,83 @@ class MainWindow(QMainWindow):
                         QMessageBox.Yes | QMessageBox.No
                     )
                     if reply == QMessageBox.No:
-                        return  # Ожидаем, что пользователь отменит сохранение
-
+                        return  # Пользователь отменил сохранение
+                # Если пользователь подтвердил сохранение, либо категорий не было, то сохраняем в .txt
                 self.save_to_txt(filename)
-                self.current_file = filename  # Обновляем текущий файл
-                self.is_modified = False  # Файл сохранён, изменений больше нет
-                self.update_window_title()  # Обновляем заголовок окна
-                settings = QSettings("eluvesi", "NCA")
-                settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
+            # Обновляем состояние
+            self.current_file = filename  # Обновляем текущий файл
+            self.is_modified = False  # Файл сохранён, изменений больше нет
+            self.update_window_title()  # Обновляем заголовок окна
+            self.settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
 
     def save_to_txt(self, filename):
         """Сохраняет список замечаний со вкладки "Все" в txt-файл."""
-        with open(filename, "w", encoding="utf-8") as file:
-            for row in range(self.ui.allTabListWidget.count()):
-                file.write(self.ui.allTabListWidget.item(row).text() + "\n")
-        self.statusBar().showMessage(f"Замечания сохранены в {filename}.", 3000)
+        try:
+            with open(filename, "w", encoding="utf-8") as file:
+                for row in range(self.ui.allTabListWidget.count()):
+                    file.write(self.ui.allTabListWidget.item(row).text() + "\n")
+            self.statusBar().showMessage(f"Замечания сохранены в {filename}.", 3000)
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Ошибка при сохранении",
+                f"Не удалось сохранить файл:\n{str(e)}"
+            )
+
+    def save_to_json(self, file_path):
+        """Сохраняет замечания из всех вкладок (кроме 'Все') в JSON-формате."""
+        # Будем заполнять data для сохранения в .json-файл
+        data = {}
+        # Проходимся по всем вкладкам (категориям), кроме вкладки "Все" (т.к. нет такой категории)
+        for i in range(self.ui.tabWidget.count()):
+            tab_name = self.ui.tabWidget.tabText(i)
+            if tab_name == "Все":
+                continue  # Вкладку "Все" не сохраняем отдельно
+            # На каждой вкладке пройдёмся по списку замечаний заполняя массив remarks
+            tab_list_widget = self.ui.tabWidget.widget(i)
+            remarks = []
+            for j in range(tab_list_widget.count()):
+                item_text = tab_list_widget.item(j).text()
+                remarks.append(item_text)
+            data[tab_name] = remarks  # Используем категорию как ключ в data
+        try:
+            with open(file_path, 'w', encoding='utf-8') as file:
+                json.dump(data, file, ensure_ascii=False, indent=4)
+            self.statusBar().showMessage(f"Замечания сохранены в {file_path}.", 3000)
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Ошибка при сохранении",
+                f"Не удалось сохранить файл:\n{str(e)}"
+            )
 
     def add_remark(self):
         """Открывает окно для добавления нового замечания в список."""
         dialog = RemarkDialog(self)
-
         if dialog.exec():
             text, category = dialog.get_data()
             if not text.strip():
                 return  # Не добавляем пустые замечания
-
             if not category.strip():
                 category = "Без категории"
-
-            # Добавление на вкладку категории
+            # Проверим, существует ли вкладка с таким названием
             existing_categories = [self.ui.tabWidget.tabText(i) for i in range(self.ui.tabWidget.count())]
             if category not in existing_categories:
-                # Создаём новую вкладку
-                new_tab = QListWidget()
-                self.ui.tabWidget.addTab(new_tab, category)
+                # Если нет, создаём новую вкладку со списком
+                tab_list_widget = QListWidget()
+                self.ui.tabWidget.addTab(tab_list_widget, category)
             else:
-                # Ищем существующую вкладку
+                # Иначе ищем среди всех вкладок нужную
                 for i in range(self.ui.tabWidget.count()):
                     if self.ui.tabWidget.tabText(i) == category:
-                        new_tab = self.ui.tabWidget.widget(i)
+                        # Когда нашли, в tab_list_widget заносим список с этой вкладки
+                        tab_list_widget = self.ui.tabWidget.widget(i)
                         break
-
-            new_tab.addItem(text)  # Добавляем в выбранную категорию
-            self.ui.allTabListWidget.addItem(text)  # Добавляем на вкладку "Все"
-
-            self.is_modified = True
-            self.update_window_title()
+            tab_list_widget.addItem(text)  # Добавляем замечание в список на вкладке выбранной категории
+            self.ui.allTabListWidget.addItem(text)  # Добавляем замечание в список на вкладке "Все"
+            # Обновим состояние
+            self.is_modified = True  # Файл изменился
+            self.update_window_title()  # Обновляем заголовок
             self.statusBar().showMessage("Добавлено новое замечание.", 3000)
 
     def remove_remark(self):
@@ -341,13 +320,27 @@ class MainWindow(QMainWindow):
 
     def copy_remark(self):
         """Копирует выбранные замечания в буфер обмена."""
-        # TODO: Сейчас работает только на вкладке "Все". Распространить и на остальные вкладки. Не забывайте про
-        # TODO: необходимость возможности множественного копирования.
-        selected_items = self.ui.allTabListWidget.selectedItems()
-        if selected_items:
-            remarks_text = "\n".join(item.text() for item in selected_items)  # Собираем все выбранные замечания
-            QApplication.clipboard().setText(remarks_text)  # Копируем их в буфер обмена
-            self.statusBar().showMessage("Выбранные замечания скопированы в буфер обмена.", 3000)
+        current_index = self.ui.tabWidget.currentIndex()
+        tab_name = self.ui.tabWidget.tabText(current_index)
+        if tab_name == "Все":
+            tab_list_widget = self.ui.allTabListWidget
+        else:
+            tab_list_widget = self.ui.tabWidget.widget(current_index)
+        if isinstance(tab_list_widget, QListWidget):
+            selected_items = tab_list_widget.selectedItems()
+            if selected_items:
+                remarks_text = "\n".join(item.text() for item in selected_items)
+                QApplication.clipboard().setText(remarks_text)
+                self.statusBar().showMessage("Выбранные замечания скопированы в буфер обмена.", 3000)
+
+    def clear_all_lists(self):
+        """Удаляет все замечания и сбрасывает вкладки категорий"""
+        # Очищаем общий список
+        self.ui.allTabListWidget.clear()
+        # Удаляем все вкладки категорий, кроме "Все"
+        for i in reversed(range(self.ui.tabWidget.count())):
+            if self.ui.tabWidget.tabText(i) != "Все":
+                self.ui.tabWidget.removeTab(i)
 
     def clear_remark_list(self):
         """Очищает весь список замечаний."""
@@ -358,19 +351,35 @@ class MainWindow(QMainWindow):
             self.update_window_title()  # Обновляем заголовок
             self.statusBar().showMessage("Список замечаний очищен.", 3000)
 
+    def update_tab_connections(self):
+        """Подключает реакции на действия пользователя (клики, выделения) для виджета списка на открываемой вкладке."""
+        current_index = self.ui.tabWidget.currentIndex()
+        tab_name = self.ui.tabWidget.tabText(current_index)
+        if tab_name == "Все":
+            tab_list_widget = self.ui.allTabListWidget
+        else:
+            tab_list_widget = self.ui.tabWidget.widget(current_index)
+        if isinstance(tab_list_widget, QListWidget):
+            tab_list_widget.setSelectionMode(QListWidget.ExtendedSelection)
+            tab_list_widget.itemSelectionChanged.connect(self.toggle_remark_buttons)
+            tab_list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+            tab_list_widget.customContextMenuRequested.connect(
+                lambda: self.copy_remark() if tab_list_widget.selectedItems() else None
+            )
+
     def toggle_remark_buttons(self):
         """Включает (отключает) кнопки взаимодействия с замечанием, если сейчас оно (не) выбрано."""
-        selected_items = []
-
-        # Проверяем все вкладки на наличие выбранных элементов
-        for i in range(self.ui.tabWidget.count()):
-            tab_widget = self.ui.tabWidget.widget(i)
-            selected_items.extend(tab_widget.selectedItems())  # Собираем все выбранные элементы
-
-        # Включаем кнопки, если есть выбранные элементы на любой вкладке
-        self.ui.remarkRemoveButton.setEnabled(bool(selected_items))
-        self.ui.remarkEditButton.setEnabled(bool(selected_items))
-        self.ui.remarkCopyButton.setEnabled(bool(selected_items))
+        current_index = self.ui.tabWidget.currentIndex()
+        tab_name = self.ui.tabWidget.tabText(current_index)
+        # Так как виджет на вкладке "Все" - особенный, то к нему требуется особое отношение :)
+        if tab_name == "Все":
+            tab_list_widget = self.ui.allTabListWidget
+        else:
+            tab_list_widget = self.ui.tabWidget.widget(current_index)
+        has_selection = bool(tab_list_widget.selectedItems()) if isinstance(tab_list_widget, QListWidget) else False
+        self.ui.remarkRemoveButton.setEnabled(has_selection)
+        self.ui.remarkEditButton.setEnabled(has_selection)
+        self.ui.remarkCopyButton.setEnabled(has_selection)
 
     def update_window_title(self):
         """Обновляет заголовок окна, отображает название текущего файла и звёздочку."""
