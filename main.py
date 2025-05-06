@@ -256,14 +256,14 @@ class MainWindow(QMainWindow):
             # Проверим, существует ли вкладка с таким названием
             existing_categories = [self.ui.tabWidget.tabText(i) for i in range(self.ui.tabWidget.count())]
             if category not in existing_categories:
-                # Если нет, создаём новую вкладку со списком
+                # Если нет, создаём новую вкладку со списком tab_list_widget
                 tab_list_widget = QListWidget()
                 self.ui.tabWidget.addTab(tab_list_widget, category)
             else:
                 # Иначе ищем среди всех вкладок нужную
                 for i in range(self.ui.tabWidget.count()):
                     if self.ui.tabWidget.tabText(i) == category:
-                        # Когда нашли, в tab_list_widget заносим список с этой вкладки
+                        # Когда нашли, в переменную tab_list_widget сохраняем список с этой вкладки
                         tab_list_widget = self.ui.tabWidget.widget(i)
                         break
             tab_list_widget.addItem(text)  # Добавляем замечание в список на вкладке выбранной категории
@@ -276,39 +276,42 @@ class MainWindow(QMainWindow):
     def remove_remark(self):
         """Удаляет выбранное замечание из текущей вкладки и из всех соответствующих вкладок."""
         current_index = self.ui.tabWidget.currentIndex()
-        current_tab = self.ui.tabWidget.widget(current_index)
-        current_tab_name = self.ui.tabWidget.tabText(current_index)
-
-        selected_items = current_tab.selectedItems()
+        tab_name = self.ui.tabWidget.tabText(current_index)
+        if tab_name == "Все":
+            tab_list_widget = self.ui.allTabListWidget
+        else:
+            tab_list_widget = self.ui.tabWidget.widget(current_index)
+        selected_items = tab_list_widget.selectedItems()
         if not selected_items:
             return
-
         for item in selected_items:
-            text = item.text()
-
-            # Удалить из текущей вкладки
-            current_tab.takeItem(current_tab.row(item))
-
-            # Удалить из вкладки "Все", если мы не на ней
-            if current_tab_name != "Все":
-                for i in range(self.ui.allTabListWidget.count()):
-                    if self.ui.allTabListWidget.item(i).text() == text:
-                        self.ui.allTabListWidget.takeItem(i)
-                        break
-            else:
+            # Для каждого выбранного замечания
+            text = item.text()  # Запоминаем текст замечания
+            tab_list_widget.takeItem(tab_list_widget.row(item))  # Удаляем с текущей вкладки
+            if tab_name == "Все":
                 # Если мы на вкладке "Все", удалить из всех остальных вкладок
                 for i in range(self.ui.tabWidget.count()):
-                    tab_name = self.ui.tabWidget.tabText(i)
-                    if tab_name != "Все":
-                        tab_widget = self.ui.tabWidget.widget(i)
-                        for j in range(tab_widget.count()):
-                            if tab_widget.item(j).text() == text:
-                                tab_widget.takeItem(j)
-                                break
-
-        self.is_modified = True
-        self.update_window_title()
-        self.statusBar().showMessage("Замечание удалено.", 3000)
+                    other_tab_name = self.ui.tabWidget.tabText(i)
+                    if other_tab_name == "Все":
+                        # Пропускаем вкладку "Все"
+                        continue
+                    other_tab_list_widget = self.ui.tabWidget.widget(i)
+                    for j in reversed(range(other_tab_list_widget.count())):
+                        # Ищем на вкладке это же самое замечание
+                        if other_tab_list_widget.item(j).text() == text:
+                            other_tab_list_widget.takeItem(j)  # Удаляем его с вкладки
+                            break
+            else:
+                # Если текущая вкладка - не вкладка "Все"
+                for i in reversed(range(self.ui.allTabListWidget.count())):
+                    # Ищем на вкладке "Все" это же самое замечание
+                    if self.ui.allTabListWidget.item(i).text() == text:
+                        self.ui.allTabListWidget.takeItem(i)  # Удаляем его с вкладки "Все"
+                        break
+        # Обновляем состояние
+        self.is_modified = True  # Файл изменился
+        self.update_window_title()  # Обновляем заголовок
+        self.statusBar().showMessage("Выбранные замечания удалены.", 3000)
 
     def edit_remark(self):
         """Поочерёдно открывает окна для редактирования выбранных замечаний."""
@@ -353,7 +356,7 @@ class MainWindow(QMainWindow):
             for i in range(tab_list_widget.count()):
                 # Для каждого замечания на текущей вкладке
                 text = tab_list_widget.item(i).text()
-                for j in range(self.ui.allTabListWidget.count()):
+                for j in reversed(range(self.ui.allTabListWidget.count())):
                     # Ищем на вкладке "Все" это же самое замечание
                     if self.ui.allTabListWidget.item(j).text() == text:
                         self.ui.allTabListWidget.takeItem(j)  # И удаляем его с вкладки "Все"
@@ -380,7 +383,7 @@ class MainWindow(QMainWindow):
                 self.ui.tabWidget.widget(i).clear()
 
     def clear_tab_list(self):
-        """Очищает список замечаний на вкладке. На вкладке "Все" очищает все списки и все вкладки."""
+        """Очищает список замечаний на текущей вкладке. На вкладке "Все" очищает списки на всех вкладках."""
         current_index = self.ui.tabWidget.currentIndex()
         tab_name = self.ui.tabWidget.tabText(current_index)
         if tab_name == "Все":
@@ -392,7 +395,7 @@ class MainWindow(QMainWindow):
             for i in range(tab_list_widget.count()):
                 # Для каждого замечания на текущей вкладке
                 text = tab_list_widget.item(i).text()
-                for j in range(self.ui.allTabListWidget.count()):
+                for j in reversed(range(self.ui.allTabListWidget.count())):
                     # Ищем на вкладке "Все" это же самое замечание
                     if self.ui.allTabListWidget.item(j).text() == text:
                         self.ui.allTabListWidget.takeItem(j)  # И удаляем его с вкладки "Все"
