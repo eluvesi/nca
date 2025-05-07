@@ -72,6 +72,9 @@ QListWidget::item:selected {
     </property>
    </widget>
    <widget class="QPushButton" name="searchButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>760</x>
@@ -363,6 +366,9 @@ QListWidget::item:selected {
     </property>
    </widget>
    <widget class="QPushButton" name="tabEditButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>260</x>
@@ -476,6 +482,9 @@ QListWidget::item:selected {
     </property>
    </widget>
    <widget class="QPushButton" name="tabRemoveButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>220</x>
@@ -533,23 +542,8 @@ QListWidget::item:selected {
      <enum>QTabWidget::Rounded</enum>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>-1</number>
     </property>
-    <widget class="QWidget" name="allTab">
-     <attribute name="title">
-      <string>Все</string>
-     </attribute>
-     <widget class="QListWidget" name="allTabListWidget">
-      <property name="geometry">
-       <rect>
-        <x>0</x>
-        <y>0</y>
-        <width>777</width>
-        <height>447</height>
-       </rect>
-      </property>
-     </widget>
-    </widget>
    </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
