@@ -16,7 +16,7 @@ class RemarkDialog(QDialog):
             ]
             self.ui.categoryComboBox.addItems(categories)
         # В строку для редактирования загружаем текущий текст замечания
-        self.ui.remarkEditLine.setText(text)
+        self.ui.textEditLine.setText(text)
         # В качестве выбранной категории устанавливаем текущую
         self.ui.categoryComboBox.setCurrentText(category)
         # Подключаем кнопки
@@ -25,6 +25,6 @@ class RemarkDialog(QDialog):
 
     def get_data(self):
         """Возвращает текст замечания и выбранную категорию."""
-        text = self.ui.remarkEditLine.text().strip()
+        text = self.ui.textEditLine.text().strip()
         category = self.ui.categoryComboBox.currentText().strip()
         return text, category
