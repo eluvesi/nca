@@ -4,9 +4,10 @@ from ui_remark_dialog import Ui_RemarkDialog
 class RemarkDialog(QDialog):
     """Окно редактирования замечания."""
     def __init__(self, parent=None, text="", category = ""):
-        super().__init__(parent)
-        self.ui = Ui_RemarkDialog()
-        self.ui.setupUi(self)
+        """Конструктор класса RemarkDialog."""
+        super().__init__(parent)  # Вызываем конструктор родительского класса
+        self.ui = Ui_RemarkDialog()  # Подгружаем интерфейс
+        self.ui.setupUi(self)  # Применяем его к текущему окну
         # Загружаем в выпадающий список категории из вкладок (кроме "Все")
         if parent:
             categories = [

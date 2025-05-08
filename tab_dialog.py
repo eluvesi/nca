@@ -4,9 +4,10 @@ from ui_tab_dialog import Ui_TabDialog
 class TabDialog(QDialog):
     """Окно редактирования вкладки."""
     def __init__(self, parent=None, name="", position=0):
-        super().__init__(parent)
-        self.ui = Ui_TabDialog()
-        self.ui.setupUi(self)
+        """Конструктор класса TabDialog."""
+        super().__init__(parent)  # Вызываем конструктор родительского класса
+        self.ui = Ui_TabDialog()  # Подгружаем интерфейс
+        self.ui.setupUi(self)  # Применяем его к текущему окну
         # Вычисляем минимальную и максимальную возможные позиции
         tab_count = parent.ui.tabWidget.count()
         self.ui.positionSpinBox.setMinimum(1)  # [0] это всегда вкладка "Все"
