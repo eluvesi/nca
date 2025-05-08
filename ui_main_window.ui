@@ -26,7 +26,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Документ – Помощник нормоконтролёра</string>
+   <string>Помощник нормоконтролёра</string>
   </property>
   <property name="windowIcon">
    <iconset>
@@ -45,7 +45,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="helpButton">
     <property name="geometry">
      <rect>
-      <x>310</x>
+      <x>350</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -106,9 +106,9 @@ QListWidget::item:selected {
    <widget class="QLineEdit" name="searchLineEdit">
     <property name="geometry">
      <rect>
-      <x>360</x>
+      <x>400</x>
       <y>10</y>
-      <width>401</width>
+      <width>361</width>
       <height>31</height>
      </rect>
     </property>
@@ -371,7 +371,7 @@ QListWidget::item:selected {
     </property>
     <property name="geometry">
      <rect>
-      <x>260</x>
+      <x>300</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -388,7 +388,7 @@ QListWidget::item:selected {
     </property>
     <property name="icon">
      <iconset>
-      <normaloff>icons/category-edit.png</normaloff>icons/category-edit.png</iconset>
+      <normaloff>icons/tab-edit.png</normaloff>icons/tab-edit.png</iconset>
     </property>
     <property name="iconSize">
      <size>
@@ -429,9 +429,9 @@ QListWidget::item:selected {
    <widget class="Line" name="line">
     <property name="geometry">
      <rect>
-      <x>160</x>
+      <x>200</x>
       <y>10</y>
-      <width>20</width>
+      <width>21</width>
       <height>31</height>
      </rect>
     </property>
@@ -442,9 +442,9 @@ QListWidget::item:selected {
    <widget class="Line" name="line_2">
     <property name="geometry">
      <rect>
-      <x>290</x>
+      <x>330</x>
       <y>10</y>
-      <width>20</width>
+      <width>16</width>
       <height>31</height>
      </rect>
     </property>
@@ -455,7 +455,7 @@ QListWidget::item:selected {
    <widget class="QPushButton" name="tabAddButton">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>220</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -472,7 +472,7 @@ QListWidget::item:selected {
     </property>
     <property name="icon">
      <iconset>
-      <normaloff>icons/category-add.png</normaloff>icons/category-add.png</iconset>
+      <normaloff>icons/tab-new.png</normaloff>icons/tab-new.png</iconset>
     </property>
     <property name="iconSize">
      <size>
@@ -487,7 +487,7 @@ QListWidget::item:selected {
     </property>
     <property name="geometry">
      <rect>
-      <x>220</x>
+      <x>260</x>
       <y>10</y>
       <width>31</width>
       <height>31</height>
@@ -504,7 +504,7 @@ QListWidget::item:selected {
     </property>
     <property name="icon">
      <iconset>
-      <normaloff>icons/category-remove.png</normaloff>icons/category-remove.png</iconset>
+      <normaloff>icons/tab-remove.png</normaloff>icons/tab-remove.png</iconset>
     </property>
     <property name="iconSize">
      <size>
@@ -516,7 +516,7 @@ QListWidget::item:selected {
    <widget class="Line" name="line_3">
     <property name="geometry">
      <rect>
-      <x>340</x>
+      <x>380</x>
       <y>10</y>
       <width>20</width>
       <height>31</height>
@@ -543,6 +543,35 @@ QListWidget::item:selected {
     </property>
     <property name="currentIndex">
      <number>-1</number>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="fileRevertButton">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>10</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="toolTip">
+     <string>Отменить изменения</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="icon">
+     <iconset>
+      <normaloff>icons/document-revert.png</normaloff>icons/document-revert.png</iconset>
+    </property>
+    <property name="iconSize">
+     <size>
+      <width>24</width>
+      <height>24</height>
+     </size>
     </property>
    </widget>
   </widget>

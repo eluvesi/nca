@@ -40,6 +40,7 @@ class MainWindow(QMainWindow):
         self.ui.fileOpenButton.clicked.connect(self.open_file)
         self.ui.fileSaveButton.clicked.connect(self.save_file)
         self.ui.fileSaveAsButton.clicked.connect(self.save_file_as)
+        self.ui.fileRevertButton.clicked.connect(self.revert_file)
         self.ui.tabAddButton.clicked.connect(self.add_tab)
         self.ui.tabRemoveButton.clicked.connect(self.remove_tab)
         self.ui.tabEditButton.clicked.connect(self.edit_tab)
@@ -103,9 +104,9 @@ class MainWindow(QMainWindow):
                 return
         # Обновляем состояние
         self.current_file = None  # Обновляем текущий файл
+        self.remove_user_tabs()  # Удаляем все вкладки пользователя, и очищаем "Все" и "Без категории"
         self.is_modified = False  # Создан новый файл, изменений больше нет
         self.update_window_title()  # Обновляем заголовок окна
-        self.remove_user_tabs()  # Удаляем все вкладки, кроме вкладок "Все" и "Без категории"
         self.statusBar().showMessage("Создан новый файл. Не забудьте сохранить изменения.", WAIT)
 
     def open_file(self):
@@ -292,9 +293,27 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка при сохранении файла", f"Не удалось сохранить файл:\n{str(e)}")
 
+    def revert_file(self):
+        """Отменяет все изменения в текущем файле, загружая его заново. Если текущего файла нет, то создаёт новый."""
+        # Если пользователь работал с каким-то файлом на компьютере, то перезагружаем этот файл
+        if self.current_file:
+            self.load_file(self.current_file)
+        # Если пользователь создал новый файл и вносил изменения туда, то сбрасываем все изменения
+        else:
+            self.remove_user_tabs()  # Удаляем все вкладки пользователя, и очищаем "Все" и "Без категории"
+            self.is_modified = False  # Изменений больше нет
+            self.update_window_title()  # Обновляем заголовок окна
+        self.statusBar().showMessage("Все несохранённые изменения отменены. Состояние файла восстановлено.", WAIT)
+
     def add_remark(self):
-        """Открывает диалог для добавления нового замечания в список."""
-        dialog = RemarkDialog(self, category="Без категории")
+        """Открывает диалог для добавления нового замечания в список. В качестве категории предлагает текущую."""
+        # Определяем текущую вкладку
+        tab_name = self.ui.tabWidget.tabText(self.ui.tabWidget.currentIndex())
+        if tab_name in ["Все", "Без категории"]:
+            default_category = "Без категории"  # Для "Все" и "Без категории" по умолчанию предлагаем "Без категории"
+        else:
+            default_category = tab_name  # Для остальных вкладок по умолчанию предлагаем текущую вкладку
+        dialog = RemarkDialog(self, category=default_category)
         if not dialog.exec():
             return  # Если пользователь нажал "Отмена" или просто закрыл окно, то ничего не делаем
         text, category = dialog.get_data()
@@ -306,6 +325,8 @@ class MainWindow(QMainWindow):
                 # Когда нашли, в переменную list_widget сохраняем список с этой вкладки
                 list_widget = self.ui.tabWidget.widget(i)
                 break
+        else:
+            return  # Если не нашли (break не отработал), то выходим, но вообще такая ситуация невозможна
         # Создаём элемент списка
         item = QListWidgetItem(text)  # Текст, введённый пользователем, сохраняем в качестве текста элемента
         item.setData(Qt.UserRole, category)  # Категорию, выбранную пользователем, сохраняем в data элемента
@@ -579,10 +600,10 @@ class MainWindow(QMainWindow):
         # Подключаем реакции на действия пользователя для этого списка
         list_widget.setSelectionMode(QListWidget.ExtendedSelection)  # Множественное выделение
         list_widget.itemSelectionChanged.connect(self.toggle_remark_buttons)  # Вкл/выкл кнопки замечаний
-        list_widget.setContextMenuPolicy(Qt.CustomContextMenu)  # Включаем реакцию на ПКМ
+        list_widget.setContextMenuPolicy(Qt.CustomContextMenu)  # Включаем контекстное меню (для реакции на ПКМ)
         list_widget.customContextMenuRequested.connect(
             lambda: self.copy_remark() if list_widget.selectedItems() else None
-        )  # Устанавливаем копирование в качестве реакции на ПКМ
+        )  # Устанавливаем копирование выделенных замечаний в качестве реакции на ПКМ
 
     def toggle_remark_buttons(self):
         """Выключает кнопки взаимодействия с замечаниями, если нет выбранных замечаний. И наоборот."""
