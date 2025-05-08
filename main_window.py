@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QListWidget, 
 from remark_dialog import RemarkDialog
 from tab_dialog import TabDialog
 from ui_main_window import Ui_MainWindow
+from utils import resource_path
 
 WAIT = 5000
 
@@ -46,7 +47,7 @@ class MainWindow(QMainWindow):
         self.ui.remarkCopyButton.clicked.connect(self.copy_remark)  # Кнопка "Копировать выбранные замечания"
         self.ui.listClearButton.clicked.connect(self.clear_list)  # Кнопка "Очистить список"
         # Поиск
-        self.ui.searchLineEdit.addAction(QIcon("icons/find.png"), QLineEdit.LeadingPosition)  # Иконка лупы
+        self.ui.searchLineEdit.addAction(QIcon(resource_path("icons/find.png")), QLineEdit.LeadingPosition)  # Иконка
         self.ui.searchLineEdit.textChanged.connect(self.process_search)  # Динамическая фильтрация при печати
 
         # Включение реакций на клики и выделение элементов для виджетов списков
