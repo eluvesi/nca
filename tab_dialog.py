@@ -11,7 +11,11 @@ class TabDialog(QDialog):
         # Вычисляем минимальную и максимальную возможные позиции
         tab_count = parent.ui.tabWidget.count()
         self.ui.positionSpinBox.setMinimum(1)  # [0] это всегда вкладка "Все"
-        self.ui.positionSpinBox.setMaximum(tab_count - 2)  # [tab_count - 1] это всегда вкладка "Без категории"
+        # Определяем, добавляем ли мы новую вкладку или редактируем имеющуюся
+        if name:  # Если name не пусто, значит редактируем, тогда максимальный индекс [tab_count - 2]
+            self.ui.positionSpinBox.setMaximum(tab_count - 2)  # ведь [tab_count - 1] это вкладка "Без категории"
+        else:  # Иначе добавляем новую, тогда, так как после добавления tab_count увеличится на 1
+            self.ui.positionSpinBox.setMaximum(tab_count - 1)  # то максимальный индекс [tab_count - 2 + 1]
         # В строку для редактирования загружаем текущий текст замечания
         self.ui.nameEditLine.setText(name)
         # В качестве выбранной позиции устанавливаем текущую
