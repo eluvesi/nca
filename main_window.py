@@ -201,6 +201,7 @@ class MainWindow(QMainWindow):
                             return  # Сохранить не удалось, выходим
                         os.rename(self.current_file, new_filename)  # Меняем расширение текущего файла на уровне ФС
                         self.current_file = new_filename  # Меняем на уровне приложения
+                        self.settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего файла
                         self.write_to_json(self.current_file)  # Записываем в .json-файл
                     elif reply == QMessageBox.No:
                         self.write_to_txt(self.current_file)  # Записываем в .txt-файл
