@@ -21,7 +21,7 @@
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>icons/logo.png</normaloff>icons/logo.png</iconset>
+    <normaloff>icons/icon.png</normaloff>icons/icon.png</iconset>
   </property>
   <property name="styleSheet">
    <string notr="true">QListWidget::item:hover {
@@ -324,7 +324,11 @@ QListWidget::item:selected {
      </layout>
     </item>
     <item>
-     <widget class="QTabWidget" name="tabWidget"/>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="movable">
+       <bool>true</bool>
+      </property>
+     </widget>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2">

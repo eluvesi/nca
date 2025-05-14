@@ -1,5 +1,7 @@
 from PyQt5.QtWidgets import QDialog
+
 from ui_tab_dialog import Ui_TabDialog
+
 
 class TabDialog(QDialog):
     """Окно редактирования вкладки."""

@@ -2,8 +2,8 @@ import json
 import os
 
 from PyQt5.QtCore import QSettings, Qt
-from PyQt5.QtGui import QGuiApplication, QIcon
-from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QListWidget, QListWidgetItem, QLineEdit
+from PyQt5.QtGui import QGuiApplication, QIcon, QKeySequence
+from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QListWidget, QListWidgetItem, QLineEdit, QShortcut
 
 from remark_dialog import RemarkDialog
 from tab_dialog import TabDialog
@@ -596,12 +596,14 @@ class MainWindow(QMainWindow):
         current_index = self.ui.tabWidget.currentIndex()
         list_widget = self.ui.tabWidget.widget(current_index)
         # Подключаем реакции на действия пользователя для этого списка
-        list_widget.setSelectionMode(QListWidget.ExtendedSelection)  # Множественное выделение
+        list_widget.itemDoubleClicked.connect(self.edit_remark)  # Редактирование двойным кликом
+        list_widget.setSelectionMode(QListWidget.ExtendedSelection)  # Включаем множественное выделение
         list_widget.itemSelectionChanged.connect(self.toggle_remark_buttons)  # Вкл/выкл кнопки замечаний
+        QShortcut(QKeySequence("Ctrl+C"), list_widget).activated.connect(self.copy_remark)  # Копирование через CTRL + C
         list_widget.setContextMenuPolicy(Qt.CustomContextMenu)  # Включаем контекстное меню (для реакции на ПКМ)
         list_widget.customContextMenuRequested.connect(
             lambda: self.copy_remark() if list_widget.selectedItems() else None
-        )  # Устанавливаем копирование выделенных замечаний в качестве реакции на ПКМ
+        )  # Устанавливаем копирование выделенных замечаний в качестве реакции на нажатие ПКМ
 
     def toggle_remark_buttons(self):
         """Выключает кнопки взаимодействия с замечаниями, если нет выбранных замечаний. И наоборот."""
