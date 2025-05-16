@@ -94,6 +94,7 @@ class MainWindow(QMainWindow):
         """Загружает переданный файл и обновляет состояние приложения."""
         # Очищаем интерфейс приложения перед загрузкой
         self.remove_user_tabs()  # Удаляем все вкладки, кроме вкладок "Все" и "Без категории"
+        self.ui.tabWidget.setCurrentIndex(0)  # Переключаемся на вкладку "Все"
         # Загружаем файл по-разному в зависимости от формата
         load_success = False
         if filename.endswith(".txt"):  # Читаем список замечаний из txt-файла
@@ -512,7 +513,7 @@ class MainWindow(QMainWindow):
             return  # Не добавляем вкладки без имени
         # Проверка, существует ли уже вкладка с таким именем
         for i in range(self.ui.tabWidget.count()):
-            if self.ui.tabWidget.tabText(i) == name:
+            if self.ui.tabWidget.tabText(i).lower() == name.lower():
                 QMessageBox.warning(self, "Ошибка", f"Вкладка\"{name}\" уже существует.")
                 return
         # Если не существует, создаём и открываем новую вкладку
@@ -564,8 +565,9 @@ class MainWindow(QMainWindow):
         new_name, new_position = dialog.get_data()
         if not new_name or new_name == old_name and new_position == current_index:
             return  # Имя не менялось (или пустое) и позиция не менялась -> ничего не делаем
-        existing_names = [self.ui.tabWidget.tabText(i) for i in range(self.ui.tabWidget.count())]
-        if new_name in existing_names and new_name != old_name: # А если бы new_name == old_name, то это смена позиции
+        existing_names = [self.ui.tabWidget.tabText(i).lower() for i in range(self.ui.tabWidget.count())]
+        if new_name.lower() in existing_names and new_name.lower() != old_name.lower():
+            # Вторая часть условия нужна, чтобы не было предупреждения когда пользователь хочет сменить только позицию
             QMessageBox.warning(self, "Ошибка", f"Вкладка \"{new_name}\" уже существует.")
             return
         # Обновляем название вкладки
@@ -674,23 +676,6 @@ class MainWindow(QMainWindow):
             self.ui.tagPanelWidget.setVisible(True)  # Разворачиваем панель
             self.ui.tagPanelButton.setChecked(True)  # Меняем состояние кнопки
 
-    def on_tab_moved(self, from_index, to_index):
-        """Проверяет, какая вкладка была перемещена. Если это "Все" или "Без категории", то отменяет перемещение."""
-        tab_bar = self.ui.tabWidget.tabBar()
-        count = tab_bar.count()
-        # Если пользователь перетащил закреплённые вкладки
-        if tab_bar.tabText(0) != "Все":
-            idx = tab_bar.indexOf(self.ui.tabWidget.findChild(QWidget, "Все"))
-            tab_bar.blockSignals(True)
-            tab_bar.moveTab(idx, 0)
-            tab_bar.blockSignals(False)
-        if tab_bar.tabText(count - 1) != "Без категории":
-            idx = tab_bar.indexOf(self.ui.tabWidget.findChild(QWidget, "Без категории"))
-            tab_bar.blockSignals(True)
-            tab_bar.moveTab(idx, count - 1)
-            tab_bar.blockSignals(False)
-
-
     def process_search(self):
         """Если есть текст в поисковой строке, фильтрует список на текущей вкладке. Если нет - возвращает как было."""
         # Определяем поисковый запрос и переводим его в нижний регистр
@@ -770,7 +755,7 @@ class MainWindow(QMainWindow):
 
 class LockedTabBar(QTabBar):
     """
-    Кастомный QTabBar, который гарантирует, что вкладки с названиями "Все" и "Без категории" всегда остаются
+    Кастомный QTabBar, который гарантирует, что вкладки с именами "Все" и "Без категории" всегда остаются
     на первой и последней позициях соответственно после завершения перетаскивания вкладок.
 
     Переопределяет обработку отпускания кнопки мыши, чтобы автоматически
@@ -784,8 +769,8 @@ class LockedTabBar(QTabBar):
         """
         Обработка события отпускания кнопки мыши.
 
-        После выполнения базовой обработки перемещает вкладку с текстом
-        «Все» на первую позицию, а вкладку с текстом «Без категории» — на последнюю.
+        После выполнения базовой обработки перемещает вкладку с именем
+        "Все" на первую позицию, а вкладку с именем "Без категории" — на последнюю.
 
         Аргументы:
             event (QMouseEvent): Событие отпускания кнопки мыши.
