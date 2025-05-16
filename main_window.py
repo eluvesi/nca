@@ -486,10 +486,10 @@ class MainWindow(QMainWindow):
                             new_item.setData(Qt.UserRole + 1, new_tags)  # Записываем теги
                             self.ui.tabWidget.widget(i).addItem(new_item)  # Добавляем элемент в список
                             break
-        # Обновляем состояние
-        self.is_modified = True  # Файл изменился
-        self.update_window_title()  # Обновляем заголовок
-        self.statusBar().showMessage("Замечание обновлено.", WAIT)
+            # Обновляем состояние
+            self.is_modified = True  # Файл изменился
+            self.update_window_title()  # Обновляем заголовок
+            self.statusBar().showMessage("Замечание обновлено.", WAIT)
 
     def copy_remark(self):
         """Копирует выбранные замечания в буфер обмена."""
