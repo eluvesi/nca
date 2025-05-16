@@ -4,9 +4,26 @@ from ui_tab_dialog import Ui_TabDialog
 
 
 class TabDialog(QDialog):
-    """Окно редактирования вкладки."""
+    """
+    Окно редактирования или создания вкладки.
+
+    Позволяет задать название вкладки и её позицию среди остальных. Предоставляет метод для получения введённых данных.
+
+    Методы:
+        __init__(parent=None, name="", position=0):
+            Конструктор окна.
+        get_data():
+            Возвращает данные из полей ввода.
+    """
     def __init__(self, parent=None, name="", position=0):
-        """Конструктор класса TabDialog."""
+        """
+        Конструктор окна TabDialog.
+
+        Аргументы:
+            parent (QWidget, optional): Родительский виджет (главное окно). По умолчанию None.
+            name (str, optional): Имя редактируемой вкладки. По умолчанию пустая строка.
+            position (int, optional): Текущая позиция вкладки (для редактирования). По умолчанию 0.
+        """
         super().__init__(parent)  # Вызываем конструктор родительского класса
         self.ui = Ui_TabDialog()  # Подгружаем интерфейс
         self.ui.setupUi(self)  # Применяем его к текущему окну
@@ -27,7 +44,14 @@ class TabDialog(QDialog):
         self.ui.cancelButton.clicked.connect(self.reject)
 
     def get_data(self):
-        """Возвращает имя вкладки и выбранную позицию."""
-        name = self.ui.nameEditLine.text().strip()
-        position = self.ui.positionSpinBox.value()
+        """
+        Возвращает данные, введённые пользователем.
+
+        Считывает имя вкладки и выбранную позицию из элементов интерфейса.
+
+        Возвращает:
+            tuple[str, int]: Имя вкладки и её позиция.
+        """
+        name = self.ui.nameEditLine.text().strip()  # Имя вкладки считываем из строки nameEditLine
+        position = self.ui.positionSpinBox.value()  # Позицию - из positionSpinBox
         return name, position

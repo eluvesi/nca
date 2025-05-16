@@ -3,12 +3,28 @@ import os
 
 from PyQt5.QtCore import QSettings, Qt
 from PyQt5.QtGui import QGuiApplication, QIcon, QKeySequence
-from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QListWidget, QListWidgetItem, QLineEdit, QShortcut
+from PyQt5.QtWidgets import (
+    QMainWindow,
+    QFileDialog,
+    QMessageBox,
+    QListWidget,
+    QListWidgetItem,
+    QLineEdit,
+    QShortcut,
+    QTabBar,
+    QWidget,
+)
 
 from remark_dialog import RemarkDialog
 from tab_dialog import TabDialog
 from ui_main_window import Ui_MainWindow
 from utils import resource_path
+
+import traceback
+import sys
+sys.excepthook = lambda exctype, value, tb: traceback.print_exception(exctype, value, tb)
+
+
 
 WAIT = 5000
 
@@ -25,9 +41,14 @@ class MainWindow(QMainWindow):
         self.is_modified = False  # Инициализируем флаг несохранённых изменений в текущем файле
         self.settings = QSettings("eluvesi", "NCA")  # Загружаем сохранённые с помощью QSettings настройки
 
+        self.ui.tabWidget.setTabBar(LockedTabBar())  # Устанавливаем кастомный QTabBar с закреплёнными вкладками
+        self.ui.tabWidget.setMovable(True)  # Включаем возможность перетаскивать вкладки
+
         self.summaryListWidget = QListWidget()  # Создаём список "Все"
-        self.uncategorizedListWidget = QListWidget()  # Создаём список "Без категории"
+        self.set_list_connects(self.summaryListWidget)  # Подключаем реакции на действия пользователя
         self.ui.tabWidget.insertTab(0, self.summaryListWidget, "Все")  # Создаём вкладку "Все"
+        self.uncategorizedListWidget = QListWidget()  # Создаём список "Без категории"
+        self.set_list_connects(self.uncategorizedListWidget)  # Подключаем реакции на действия пользователя
         self.ui.tabWidget.addTab(self.uncategorizedListWidget, "Без категории")  # Создаём вкладку "Без категории"
 
         # Работа с файлами
@@ -49,14 +70,17 @@ class MainWindow(QMainWindow):
         # Поиск
         self.ui.searchLineEdit.addAction(QIcon(resource_path("icons/find.png")), QLineEdit.LeadingPosition)  # Иконка
         self.ui.searchLineEdit.textChanged.connect(self.process_search)  # Динамическая фильтрация при печати
+        # Панель тегов
+        self.ui.tagPanelWidget.setVisible(False)  # Изначально панель скрыта
+        self.ui.tagPanelButton.clicked.connect(self.toggle_tag_panel)  # Кнопка для сворачивания/разворачивания
 
-        # Включение реакций на клики и выделение элементов для виджетов списков
-        self.set_list_connects()  # Сразу включаем для списка на изначально открытой вкладке "Все"
-        self.ui.tabWidget.currentChanged.connect(self.set_list_connects)  # Для остальных включаем при переходе
         # Выключение кнопок удаления и редактирования вкладки при переходе на вкладки "Все" или "Без категории"
         self.ui.tabWidget.currentChanged.connect(self.toggle_tab_buttons)
         # Включение/выключение кнопок взаимодействия с замечаниями при перемещении между вкладками
         self.ui.tabWidget.currentChanged.connect(self.toggle_remark_buttons)
+
+        # Включение шорткатов
+        self.set_shortcuts()
 
         # Находим в настройках и открываем последний редактируемый файл
         last_file = self.settings.value("last_file", "")  # Из настроек узнаём путь к последнему файлу
@@ -64,6 +88,7 @@ class MainWindow(QMainWindow):
             self.load_file(last_file)  # Если этот файл существует, то загружаем его
         else:
             self.create_file()  # Иначе создаём новый
+
 
     def load_file(self, filename):
         """Загружает переданный файл и обновляет состояние приложения."""
@@ -149,24 +174,31 @@ class MainWindow(QMainWindow):
         """Считывает замечания и категории из .json-файла, создаёт и заполняет вкладки."""
         try:
             with open(filename, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                for category, remarks in data.items():
-                    # Создаем вкладку со списком замечаний для каждой категории
+                data = json.load(file)  # список словарей [{"category": ..., "text": ..., "tags": ...}]
+                categories = {}  # Собираем категории
+                for item in data:
+                    category = item.get('category', "Без категории")  # Получаем категорию
+                    text = item.get('text', "").strip()  # Получаем текст
+                    tags = item.get('tags', [])  # Получаем теги
+                    if not text:
+                        continue  # Не добавляем пустые замечания
                     if category == "Без категории":  # Если в файле в качестве категории встретили "Без категории", то
-                        list_widget = self.uncategorizedListWidget  # Берём в качестве tab_widget уже имеющийся список
-                    else:
-                        list_widget = QListWidget()  # Иначе создаём новый список
-                        self.ui.tabWidget.insertTab(self.ui.tabWidget.count() - 1, list_widget, category)  # И вкладку
-                    # Каждое замечание добавляем сразу в два списка
-                    for text in remarks:
-                        if not text.strip():
-                            continue  # Не добавляем пустые замечания
-                        # Создаём элемент списка
-                        item = QListWidgetItem(text)  # Текст замечания
-                        item.setData(Qt.UserRole, category)  # Категория
-                        # Добавляем этот элемент в два списка
-                        list_widget.addItem(item)  # Добавляем в список на вкладке категории
-                        self.summaryListWidget.addItem(item.clone())  # Клона добавляем в список на вкладке "Все"
+                        list_widget = self.uncategorizedListWidget  # Берём в качестве list_widget уже имеющийся список
+                    else:  # Для всех остальных категорий
+                        if category not in categories:  # Если такую категорию встретили впервые
+                            list_widget = QListWidget()  # Создаём новый список
+                            self.set_list_connects(list_widget)  # Подключаем реакции для этого списка
+                            self.ui.tabWidget.insertTab(self.ui.tabWidget.count() - 1, list_widget, category)  # Вкладка
+                            categories[category] = list_widget  # Запоминаем список для повторных обращений
+                        else:  # Если такую категорию уже встречали
+                            list_widget = categories[category]  # Берём в качестве list_widget уже имеющийся список
+                    # Создаём элемент списка
+                    item = QListWidgetItem(text)  # Текст замечания
+                    item.setData(Qt.UserRole, category)  # Категория
+                    item.setData(Qt.UserRole + 1, tags)  # Теги
+                    # Добавляем этот элемент в два списка
+                    list_widget.addItem(item)  # Добавляем в список на вкладке категории
+                    self.summaryListWidget.addItem(item.clone())  # Клона добавляем в список на вкладке "Все"
             return True
         except (FileNotFoundError, json.JSONDecodeError):
             return False
@@ -184,7 +216,7 @@ class MainWindow(QMainWindow):
                     reply = QMessageBox.question(
                         self,
                         "Изменить формат?",
-                        "В вашем документе есть категории. При записи в .txt-файл они исчезнут.\n"
+                        "В вашем документе есть категории и/или теги. При записи в .txt-файл они исчезнут.\n"
                         "Хотите изменить формат файла на .json?",
                         QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
                         QMessageBox.Yes
@@ -232,7 +264,7 @@ class MainWindow(QMainWindow):
                     reply = QMessageBox.question(
                         self,
                         "Изменить формат?",
-                        "В вашем документе есть категории. При записи в .txt-файл они исчезнут.\n"
+                        "В вашем документе есть категории и/или теги. При записи в .txt-файл они исчезнут.\n"
                         "Хотите изменить формат файла на .json?",
                         QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
                         QMessageBox.Yes
@@ -271,7 +303,7 @@ class MainWindow(QMainWindow):
     def write_to_json(self, file_path):
         """Записывает все замечания в .json-файл. Информация о категориях сохраняется."""
         # Будем заполнять data для сохранения в .json-файл
-        data = {}
+        data = []
         # Проходимся по всем вкладкам (категориям), кроме вкладки "Все" (так как нет такой категории)
         for i in range(self.ui.tabWidget.count()):
             tab_name = self.ui.tabWidget.tabText(i)
@@ -279,11 +311,15 @@ class MainWindow(QMainWindow):
                 continue  # Вкладку "Все" не сохраняем отдельно
             # На каждой вкладке проходимся по списку замечаний заполняя массив remarks
             list_widget = self.ui.tabWidget.widget(i)
-            remarks = []
             for j in range(list_widget.count()):
-                text = list_widget.item(j).text()
-                remarks.append(text)
-            data[tab_name] = remarks  # Используем категорию как ключ в data
+                item = list_widget.item(j)  # Получаем элемент списка
+                text = item.text()  # Получаем текст замечания
+                tags = item.data(Qt.UserRole + 1) # Получаем теги
+                data.append({
+                    "category": tab_name,
+                    "text": text,
+                    "tags": tags
+                })
         try:
             with open(file_path, 'w', encoding='utf-8') as file:
                 json.dump(data, file, ensure_ascii=False, indent=4)
@@ -311,13 +347,13 @@ class MainWindow(QMainWindow):
             default_category = "Без категории"  # Для "Все" и "Без категории" по умолчанию предлагаем "Без категории"
         else:
             default_category = tab_name  # Для остальных вкладок по умолчанию предлагаем текущую вкладку
-        dialog = RemarkDialog(self, category=default_category)
+        dialog = RemarkDialog(self, category=default_category, tags=[])
         if not dialog.exec():
             return  # Если пользователь нажал "Отмена" или просто закрыл окно, то ничего не делаем
-        text, category = dialog.get_data()
+        text, category, tags = dialog.get_data()
         if not text:
             return  # Не добавляем пустые замечания
-        # Ищем среди всех вкладок нужную
+        # Ищем вкладку по категории
         for i in range(self.ui.tabWidget.count()):
             if self.ui.tabWidget.tabText(i) == category:
                 # Когда нашли, в переменную list_widget сохраняем список с этой вкладки
@@ -328,6 +364,7 @@ class MainWindow(QMainWindow):
         # Создаём элемент списка
         item = QListWidgetItem(text)  # Текст, введённый пользователем, сохраняем в качестве текста элемента
         item.setData(Qt.UserRole, category)  # Категорию, выбранную пользователем, сохраняем в data элемента
+        item.setData(Qt.UserRole + 1, tags)  # Теги, введённые пользователем, сохраняем в data элемента
         # Добавляем этот элемент в два списка
         list_widget.addItem(item)  # Добавляем в список на вкладке выбранной категории
         self.summaryListWidget.addItem(item.clone())  # Клонируем и добавляем клона в список на вкладке "Все"
@@ -388,12 +425,13 @@ class MainWindow(QMainWindow):
             return
         # Для каждого выбранного замечания
         for item in selected_items:
-            old_text = item.text()  # Запоминаем старый текст
-            old_category = item.data(Qt.UserRole)  # Запоминаем старую категорию
-            dialog = RemarkDialog(self, text=old_text, category=old_category)  # Открываем окно редактирования
+            old_text = item.text()  # Старый текст
+            old_category = item.data(Qt.UserRole)  # Старая категория
+            old_tags = item.data(Qt.UserRole + 1)  # Старые теги
+            dialog = RemarkDialog(self, text=old_text, category=old_category, tags=old_tags)  # Окно редактирования
             if not dialog.exec():
                 continue  # Если пользователь нажал "Отмена" или просто закрыл окно, то ничего не делаем
-            new_text, new_category = dialog.get_data()  # Получаем новые данные
+            new_text, new_category, new_tags = dialog.get_data()  # Получаем новые данные
             if not new_text:
                 continue  # Не добавляем пустые замечания
             # Находим клона замечания на вкладке "Все" и обновляем его данные
@@ -402,20 +440,22 @@ class MainWindow(QMainWindow):
                 if clone.text() == old_text and clone.data(Qt.UserRole) == old_category:
                     clone.setText(new_text)  # Обновляем текст
                     clone.setData(Qt.UserRole, new_category)  # Обновляем категорию
+                    clone.setData(Qt.UserRole + 1, new_tags)  # Обновляем теги
                     break
             # Если мы на вкладке "Все", ищем и обновляем оригинал замечания
             if tab_name == "Все":
                 for i in range(self.ui.tabWidget.count()):
                     # Ищем вкладку, на которой находится оригинал, и удаляем его оттуда, либо просто меняем текст
                     if self.ui.tabWidget.tabText(i) == old_category:
-                        list_widget = self.ui.tabWidget.widget(i)
-                        for j in reversed(range(list_widget.count())):
+                        orig_list_widget = self.ui.tabWidget.widget(i)
+                        for j in reversed(range(orig_list_widget.count())):
                             # Ищем само замечание по тексту
-                            if list_widget.item(j).text() == old_text:
+                            if orig_list_widget.item(j).text() == old_text:
                                 if new_category == old_category:
-                                    list_widget.item(j).setText(new_text)  # Меняем текст оригинала замечания
+                                    orig_list_widget.item(j).setText(new_text)  # Обновляем текст оригинала замечания
+                                    orig_list_widget.item(j).setData(Qt.UserRole + 1, new_tags)  # Обновляем теги
                                 else:
-                                    list_widget.takeItem(j)  # Удаляем оригинал замечания
+                                    orig_list_widget.takeItem(j)  # Удаляем оригинал замечания
                                 break
                         break
                 # Если категория изменилась, то добавляем в новую, иначе ничего
@@ -425,13 +465,15 @@ class MainWindow(QMainWindow):
                         if self.ui.tabWidget.tabText(i) == new_category:
                             new_item = QListWidgetItem(new_text)  # Создаём элемент списка, записываем текст
                             new_item.setData(Qt.UserRole, new_category)  # Записываем категорию
+                            new_item.setData(Qt.UserRole + 1, new_tags)  # Записываем теги
                             self.ui.tabWidget.widget(i).addItem(new_item)  # Добавляем элемент в список
                             break
             # Иначе мы уже на нужной вкладке, просто обновляем оригинал
             else:
-                # Если категория не изменилась, то просто меняем текст
+                # Если категория не изменилась, то просто меняем текст и теги
                 if new_category == old_category:
-                    item.setText(new_text)
+                    item.setText(new_text)  # Обновляем текст
+                    item.setData(Qt.UserRole + 1, new_tags)  # Обновляем теги
                 # Иначе удаляем из старой категории и добавляем в новую
                 else:
                     list_widget.takeItem(list_widget.row(item))
@@ -440,6 +482,7 @@ class MainWindow(QMainWindow):
                         if self.ui.tabWidget.tabText(i) == new_category:
                             new_item = QListWidgetItem(new_text)  # Создаём элемент списка, записываем текст
                             new_item.setData(Qt.UserRole, new_category)  # Записываем категорию
+                            new_item.setData(Qt.UserRole + 1, new_tags)  # Записываем теги
                             self.ui.tabWidget.widget(i).addItem(new_item)  # Добавляем элемент в список
                             break
         # Обновляем состояние
@@ -473,8 +516,9 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Ошибка", f"Вкладка\"{name}\" уже существует.")
                 return
         # Если не существует, создаём и открываем новую вкладку
-        list_widget = QListWidget()
-        self.ui.tabWidget.insertTab(position, list_widget, name)
+        list_widget = QListWidget()  # Создаём виджет списка
+        self.set_list_connects(list_widget)  # Подключаем для него реакции
+        self.ui.tabWidget.insertTab(position, list_widget, name)  # Создаём новую вкладку с этим виджетом
         self.ui.tabWidget.setCurrentWidget(list_widget)  # Переключаемся на новую вкладку
         # Обновляем состояние
         self.is_modified = True
@@ -590,16 +634,11 @@ class MainWindow(QMainWindow):
         self.update_window_title()  # Обновляем заголовок
         self.statusBar().showMessage(f"Список замечаний на вкладке \"{tab_name}\" очищен.", WAIT)
 
-    def set_list_connects(self):
-        """Подключает реакции на действия пользователя (клики, выделения) для виджета списка на текущей вкладке."""
-        # Определяем текущую вкладку и список
-        current_index = self.ui.tabWidget.currentIndex()
-        list_widget = self.ui.tabWidget.widget(current_index)
-        # Подключаем реакции на действия пользователя для этого списка
+    def set_list_connects(self, list_widget):
+        """Подключает реакции на действия пользователя (клики, выделения) для указанного списка."""
         list_widget.itemDoubleClicked.connect(self.edit_remark)  # Редактирование двойным кликом
         list_widget.setSelectionMode(QListWidget.ExtendedSelection)  # Включаем множественное выделение
         list_widget.itemSelectionChanged.connect(self.toggle_remark_buttons)  # Вкл/выкл кнопки замечаний
-        QShortcut(QKeySequence("Ctrl+C"), list_widget).activated.connect(self.copy_remark)  # Копирование через CTRL + C
         list_widget.setContextMenuPolicy(Qt.CustomContextMenu)  # Включаем контекстное меню (для реакции на ПКМ)
         list_widget.customContextMenuRequested.connect(
             lambda: self.copy_remark() if list_widget.selectedItems() else None
@@ -626,6 +665,32 @@ class MainWindow(QMainWindow):
         self.ui.tabRemoveButton.setEnabled(is_editable)
         self.ui.tabEditButton.setEnabled(is_editable)
 
+    def toggle_tag_panel(self):
+        """Переключает состояние панели тегов: отображается или скрыта."""
+        if self.ui.tagPanelWidget.isVisible():  # Если сейчас панель в развёрнутом виде
+            self.ui.tagPanelWidget.setVisible(False)  # Сворачиваем панель
+            self.ui.tagPanelButton.setChecked(False)  # Меняем состояние кнопки
+        else:  # Иначе, если панель свёрнута
+            self.ui.tagPanelWidget.setVisible(True)  # Разворачиваем панель
+            self.ui.tagPanelButton.setChecked(True)  # Меняем состояние кнопки
+
+    def on_tab_moved(self, from_index, to_index):
+        """Проверяет, какая вкладка была перемещена. Если это "Все" или "Без категории", то отменяет перемещение."""
+        tab_bar = self.ui.tabWidget.tabBar()
+        count = tab_bar.count()
+        # Если пользователь перетащил закреплённые вкладки
+        if tab_bar.tabText(0) != "Все":
+            idx = tab_bar.indexOf(self.ui.tabWidget.findChild(QWidget, "Все"))
+            tab_bar.blockSignals(True)
+            tab_bar.moveTab(idx, 0)
+            tab_bar.blockSignals(False)
+        if tab_bar.tabText(count - 1) != "Без категории":
+            idx = tab_bar.indexOf(self.ui.tabWidget.findChild(QWidget, "Без категории"))
+            tab_bar.blockSignals(True)
+            tab_bar.moveTab(idx, count - 1)
+            tab_bar.blockSignals(False)
+
+
     def process_search(self):
         """Если есть текст в поисковой строке, фильтрует список на текущей вкладке. Если нет - возвращает как было."""
         # Определяем поисковый запрос и переводим его в нижний регистр
@@ -645,12 +710,45 @@ class MainWindow(QMainWindow):
             else:
                 item.setHidden(True)  # Иначе скрываем этот элемент
 
+    def set_shortcuts(self):
+        """Включает шорткаты для действий, не привязанных к кнопкам."""
+        # Выделение всех замечаний на текущей вкладке при нажатии сочетания клавиш "Ctrl + A"
+        QShortcut(QKeySequence("Ctrl+A"), self).activated.connect(
+            lambda: self.ui.tabWidget.currentWidget().selectAll()
+        )
+        # Переключение фокуса на строку поиска при нажатии сочетания клавиш "Ctrl + F"
+        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(
+            lambda: self.ui.searchLineEdit.setFocus()
+        )
+        # Обработка нажатия на "Esc" (разные действия в зависимости от текущего фокуса)
+        QShortcut(QKeySequence("Esc"), self).activated.connect(
+            self.esc_shortcut
+        )
+
+    def esc_shortcut(self):
+        """Обрабатывает нажатие на "Esc" по-разному в зависимости от фокуса."""
+        if self.ui.searchLineEdit.hasFocus():  # Если фокус на строке поиска, очищаем её и возвращаем фокус на список
+            self.ui.searchLineEdit.clear()
+            self.ui.tabWidget.currentWidget().setFocus()
+        else:  # Иначе сбрасываем выделение в списке на текущей вкладке
+            self.ui.tabWidget.currentWidget().clearSelection()
+
     def update_window_title(self):
         """Обновляет заголовок окна, отображает название текущего файла и звёздочку."""
         base_title = "Помощник нормоконтролёра"
         file_name = os.path.basename(self.current_file) if self.current_file else "Новый документ"
         modify_marker = "*" if self.is_modified else ""
         self.setWindowTitle(f"{file_name}{modify_marker} – {base_title}")
+
+    def get_all_tags(self):
+        """Возвращает отсортированный список уникальных тегов. Собирает их из замечаний-клонов со вкладки "Все"."""
+        tags = set()
+        for i in range(self.summaryListWidget.count()):
+            item = self.summaryListWidget.item(i)
+            item_tags = item.data(Qt.UserRole + 1)
+            if item_tags:
+                tags.update(item_tags)
+        return sorted(tags)
 
     def closeEvent(self, event):
         """Запрос подтверждения перед закрытием, если есть несохранённые изменения."""
@@ -668,3 +766,37 @@ class MainWindow(QMainWindow):
                 event.ignore()  # Отменяем закрытие окна
                 return
         event.accept()  # Закрываем окно
+
+
+class LockedTabBar(QTabBar):
+    """
+    Кастомный QTabBar, который гарантирует, что вкладки с названиями "Все" и "Без категории" всегда остаются
+    на первой и последней позициях соответственно после завершения перетаскивания вкладок.
+
+    Переопределяет обработку отпускания кнопки мыши, чтобы автоматически
+    вернуть эти вкладки на закреплённые позиции.
+
+    Методы:
+        mouseReleaseEvent(event):
+            Обрабатывает отпускание кнопки мыши и перемещает закреплённые вкладки.
+    """
+    def mouseReleaseEvent(self, event):
+        """
+        Обработка события отпускания кнопки мыши.
+
+        После выполнения базовой обработки перемещает вкладку с текстом
+        «Все» на первую позицию, а вкладку с текстом «Без категории» — на последнюю.
+
+        Аргументы:
+            event (QMouseEvent): Событие отпускания кнопки мыши.
+        """
+        super().mouseReleaseEvent(event)
+        count = self.count()
+        # Возвращаем вкладку "Все" на первую позицию
+        for i in range(count):
+            if self.tabText(i) == "Все":
+                self.moveTab(i, 0)
+        # Возвращаем вкладку "Без категории" на последнюю позицию
+        for i in range(count):
+            if self.tabText(i) == "Без категории":
+                self.moveTab(i, count - 1)
