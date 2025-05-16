@@ -36,7 +36,7 @@ class TabDialog(QDialog):
         else:  # Иначе добавляем новую, тогда, так как после добавления tab_count увеличится на 1
             self.ui.positionSpinBox.setMaximum(tab_count - 1)  # то максимальный индекс [tab_count - 2 + 1]
         # В строку для редактирования загружаем текущий текст замечания
-        self.ui.nameEditLine.setText(name)
+        self.ui.nameLineEdit.setText(name)
         # В качестве выбранной позиции устанавливаем текущую
         self.ui.positionSpinBox.setValue(position)
         # Подключаем кнопки
@@ -52,6 +52,6 @@ class TabDialog(QDialog):
         Возвращает:
             tuple[str, int]: Имя вкладки и её позиция.
         """
-        name = self.ui.nameEditLine.text().strip()  # Имя вкладки считываем из строки nameEditLine
+        name = self.ui.nameLineEdit.text().strip()  # Имя вкладки считываем из строки nameLineEdit
         position = self.ui.positionSpinBox.value()  # Позицию - из positionSpinBox
         return name, position
