@@ -70,10 +70,11 @@ class MainWindow(QMainWindow):
         self.ui.listClearButton.clicked.connect(self.clear_list)  # Кнопка "Очистить список"
         # Поиск
         self.ui.searchLineEdit.addAction(QIcon(resource_path("icons/find.png")), QLineEdit.LeadingPosition)  # Иконка
-        self.ui.searchLineEdit.textChanged.connect(self.process_search)  # Динамическая фильтрация при печати
+        self.ui.searchLineEdit.textChanged.connect(self.filter_remarks)  # Динамическая фильтрация при вводе запроса
         # Панель тегов
         self.ui.tagPanelWidget.setVisible(False)  # Изначально панель скрыта
         self.ui.tagPanelButton.clicked.connect(self.toggle_tag_panel)  # Кнопка для сворачивания/разворачивания
+        self.ui.tagListWidget.itemChanged.connect(self.filter_remarks)  # Динамическая фильтрация при выборе тегов
 
         # Включаем шорткаты
         self.set_shortcuts()
@@ -683,27 +684,31 @@ class MainWindow(QMainWindow):
         self.toggle_tab_buttons()  # Вкл/выкл кнопки редактирования и удаления вкладки
         self.toggle_remark_buttons()  # Вкл/выкл кнопки взаимодействия с замечаниями
         self.ui.searchLineEdit.clear()  # Очищаем строку поискового запроса
-        self.process_search()  # Производим поиск с пустым поисковым запросом, чтобы отобразить скрытые элементы
+        self.filter_remarks()  # Производим поиск с пустым поисковым запросом, чтобы отобразить скрытые элементы
         self.update_tag_list()  # Обновляем список тегов
 
-    def process_search(self):
-        """Если есть текст в поисковой строке, фильтрует список на текущей вкладке. Если нет - возвращает как было."""
+    def filter_remarks(self):
+        """Фильтрует замечания на текущей вкладке по поисковому запросу и по тегам."""
         # Определяем поисковый запрос и переводим его в нижний регистр
         query = self.ui.searchLineEdit.text().strip().lower()
+        # Определяем список выбранных тегов
+        selected_tags = [
+            self.ui.tagListWidget.item(i).text()
+            for i in range(self.ui.tagListWidget.count())
+            if self.ui.tagListWidget.item(i).checkState() == Qt.Checked
+        ]
         # Определяем список на текущей вкладке
         list_widget = self.ui.tabWidget.currentWidget()
-        # Для того чтобы вернуть список в первозданный вид, проверяем, не пуст ли запрос
-        if not query:  # Если поисковый запрос пуст
-            for i in range(list_widget.count()):
-                list_widget.item(i).setHidden(False)  # Показываем в списке все элементы
-            return # И выходим
-        # Если запрос был не пустой, то фильтруем список
+        # Фильтруем список
         for i in range(list_widget.count()):
             item = list_widget.item(i)  # Очередной элемент списка
-            if query in item.text().lower():  # Если в тексте элемента содержится запрос
-                item.setHidden(False)  # Показываем этот элемент в списке
-            else:
-                item.setHidden(True)  # Иначе скрываем этот элемент
+            item_text = item.text().lower()  # Текст замечания в нижнем регистре
+            item_tags = item.data(Qt.UserRole + 1)  # Теги замечания
+            # Проверяем, содержится ли в тексте замечания введённый пользователем поисковый запрос
+            text_matches = query in item.text().lower() if query else True
+            # Проверяем, содержатся ли в тегах замечания все теги, выбранные пользователем
+            tag_matches = all(tag in item_tags for tag in selected_tags) if selected_tags else True
+            item.setHidden(not (text_matches and tag_matches))  # Скрываем элемент, если нет никаких совпадений
 
     def set_shortcuts(self):
         """Включает шорткаты для действий, не привязанных к кнопкам."""
