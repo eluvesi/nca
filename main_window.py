@@ -12,18 +12,12 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QShortcut,
     QTabBar,
-    QWidget,
 )
 
 from remark_dialog import RemarkDialog
 from tab_dialog import TabDialog
 from ui_main_window import Ui_MainWindow
 from utils import resource_path
-
-import traceback
-import sys
-sys.excepthook = lambda exctype, value, tb: traceback.print_exception(exctype, value, tb)
-
 
 
 WAIT = 5000
@@ -40,6 +34,9 @@ class MainWindow(QMainWindow):
         self.current_file = None # Инициализируем переменную, хранящую путь до текущего файла
         self.is_modified = False  # Инициализируем флаг несохранённых изменений в текущем файле
         self.settings = QSettings("eluvesi", "NCA")  # Загружаем сохранённые с помощью QSettings настройки
+        last_file = self.settings.value("last_file", "")  # Из настроек узнаём путь к последнему файлу
+        tag_panel_visible = self.settings.value("tag_panel_visible", False, type=bool)  # Видимость панели тегов
+        self.tag_filter_mode = self.settings.value("tag_filter_mode", "AND")  # Режим фильтрации (И/ИЛИ)
 
         self.ui.tabWidget.setTabBar(LockedTabBar())  # Устанавливаем кастомный QTabBar с закреплёнными вкладками
         self.ui.tabWidget.setMovable(True)  # Включаем возможность перетаскивать вкладки
@@ -72,15 +69,21 @@ class MainWindow(QMainWindow):
         self.ui.searchLineEdit.addAction(QIcon(resource_path("icons/find.png")), QLineEdit.LeadingPosition)  # Иконка
         self.ui.searchLineEdit.textChanged.connect(self.filter_remarks)  # Динамическая фильтрация при вводе запроса
         # Панель тегов
-        self.ui.tagPanelWidget.setVisible(False)  # Изначально панель скрыта
-        self.ui.tagPanelButton.clicked.connect(self.toggle_tag_panel)  # Кнопка для сворачивания/разворачивания
+        self.ui.tagPanelWidget.setVisible(tag_panel_visible)  # Устанавливаем для панели состояние, взятое из настроек
+        self.ui.tagPanelButton.setChecked(tag_panel_visible)  # И для кнопки панели тегов тоже
+        self.ui.tagPanelButton.setToolTip("Скрыть панель тегов" if tag_panel_visible else "Показать панель тегов")
+        self.ui.tagPanelButton.clicked.connect(self.toggle_tag_panel)  # Подключаем сворачивание/разворачивание панели
+        self.ui.tagPanelAndButton.setChecked(self.tag_filter_mode == "AND")  # Устанавливаем состояние для кнопки "AND"
+        self.ui.tagPanelAndButton.clicked.connect(lambda: self.set_tag_filter_mode("AND"))  # Переключение по нажатию
+        self.ui.tagPanelOrButton.setChecked(self.tag_filter_mode == "OR")  # Устанавливаем состояние для кнопки "OR"
+        self.ui.tagPanelOrButton.clicked.connect(lambda: self.set_tag_filter_mode("OR"))  # Переключение по нажатию
+        self.ui.tagListWidget.itemPressed.connect(self.toggle_tag_checkbox)  # Установка чекбокса при клике на элемент
         self.ui.tagListWidget.itemChanged.connect(self.filter_remarks)  # Динамическая фильтрация при выборе тегов
 
         # Включаем шорткаты
         self.set_shortcuts()
 
-        # Находим в настройках и открываем последний редактируемый файл
-        last_file = self.settings.value("last_file", "")  # Из настроек узнаём путь к последнему файлу
+        # Открываем последний редактируемый файл
         if last_file and os.path.exists(last_file):
             self.load_file(last_file)  # Если этот файл существует, то загружаем его
         else:
@@ -101,7 +104,6 @@ class MainWindow(QMainWindow):
         # Если успешно, то обновляем состояние
         if load_success:
             self.current_file = filename  # Устанавливаем файл в качестве текущего
-            self.settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего файла
             self.is_modified = False  # Файл только что загружен, изменений нет
             self.update_window_title()  # Обновляем заголовок окна
             self.update_tag_list()  # Обновляем список на панели тегов
@@ -150,7 +152,6 @@ class MainWindow(QMainWindow):
             self, "Выберите файл с замечаниями", "", "Файлы замечаний (*.txt *.json)"
         )
         if filename and os.path.exists(filename):  # Если этот файл существует
-            self.settings.setValue("last_file", filename)  # Запоминаем в качестве последнего открытого файла
             self.load_file(filename)  # Загружаем файл
 
     def read_from_txt(self, filename):
@@ -236,7 +237,6 @@ class MainWindow(QMainWindow):
                             return  # Сохранить не удалось, выходим
                         os.rename(self.current_file, new_filename)  # Меняем расширение текущего файла на уровне ФС
                         self.current_file = new_filename  # Меняем на уровне приложения
-                        self.settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего файла
                         self.write_to_json(self.current_file)  # Записываем в .json-файл
                     elif reply == QMessageBox.No:
                         self.write_to_txt(self.current_file)  # Записываем в .txt-файл
@@ -672,13 +672,24 @@ class MainWindow(QMainWindow):
         self.ui.tabEditButton.setEnabled(is_editable)
 
     def toggle_tag_panel(self):
-        """Переключает состояние панели тегов: отображается или скрыта."""
-        if self.ui.tagPanelWidget.isVisible():  # Если сейчас панель в развёрнутом виде
-            self.ui.tagPanelWidget.setVisible(False)  # Сворачиваем панель
-            self.ui.tagPanelButton.setChecked(False)  # Меняем состояние кнопки
-        else:  # Иначе, если панель свёрнута
-            self.ui.tagPanelWidget.setVisible(True)  # Разворачиваем панель
-            self.ui.tagPanelButton.setChecked(True)  # Меняем состояние кнопки
+        """Переключает видимость панели тегов и обновляет состояние кнопки."""
+        visible = not self.ui.tagPanelWidget.isVisible()  # Инвертируем текущее состояние
+        self.ui.tagPanelWidget.setVisible(visible)  # Сворачиваем/разворачиваем панель тегов
+        self.ui.tagPanelButton.setChecked(visible)  # Меняем состояние кнопки
+        self.ui.tagPanelButton.setToolTip("Скрыть панель тегов" if visible else "Показать панель тегов")
+
+    def toggle_tag_checkbox(self, item):
+        """Переключает состояние чекбокса для элемента списка."""
+        current_state = item.checkState()  # Считываем текущее состояние
+        new_state = Qt.Unchecked if current_state == Qt.Checked else Qt.Checked  # Меняем на противоположное
+        item.setCheckState(new_state)  # Устанавливаем новое состояние
+
+    def set_tag_filter_mode(self, mode):
+        """Переключает режим фильтрации по тегам ("AND"/"OR") и обновляет состояние кнопок."""
+        self.tag_filter_mode = mode  # Режим фильтрации: "AND" или  "OR"
+        self.ui.tagPanelAndButton.setChecked(mode == "AND")  # Меняем состояние кнопки "&&"
+        self.ui.tagPanelOrButton.setChecked(mode == "OR")  # Меняем состояние кнопки "||"
+        self.filter_remarks()  # Повторно применяем фильтр с новым режимом
 
     def tab_changed(self):
         self.toggle_tab_buttons()  # Вкл/выкл кнопки редактирования и удаления вкладки
@@ -706,9 +717,14 @@ class MainWindow(QMainWindow):
             item_tags = item.data(Qt.UserRole + 1)  # Теги замечания
             # Проверяем, содержится ли в тексте замечания введённый пользователем поисковый запрос
             text_matches = query in item.text().lower() if query else True
-            # Проверяем, содержатся ли в тегах замечания все теги, выбранные пользователем
-            tag_matches = all(tag in item_tags for tag in selected_tags) if selected_tags else True
-            item.setHidden(not (text_matches and tag_matches))  # Скрываем элемент, если нет никаких совпадений
+            # Если режим "И", то проверяем содержатся ли в тегах замечания все теги, выбранные пользователем
+            if self.tag_filter_mode == "AND":
+                tag_matches = all(tag in item_tags for tag in selected_tags) if selected_tags else True
+            # Если режим "ИЛИ", то проверяем содержится ли в тегах замечания хотя бы один тег, выбранный пользователем
+            else:
+                tag_matches = any(tag in item_tags for tag in selected_tags) if selected_tags else True
+            # Скрываем элемент, если нет никаких совпадений
+            item.setHidden(not (text_matches and tag_matches))
 
     def set_shortcuts(self):
         """Включает шорткаты для действий, не привязанных к кнопкам."""
@@ -727,11 +743,17 @@ class MainWindow(QMainWindow):
 
     def esc_shortcut(self):
         """Обрабатывает нажатие на "Esc" по-разному в зависимости от фокуса."""
-        if self.ui.searchLineEdit.hasFocus():  # Если фокус на строке поиска, очищаем её и возвращаем фокус на список
-            self.ui.searchLineEdit.clear()
-            self.ui.tabWidget.currentWidget().setFocus()
-        else:  # Иначе сбрасываем выделение в списке на текущей вкладке
-            self.ui.tabWidget.currentWidget().clearSelection()
+        if self.ui.searchLineEdit.hasFocus():  # Если фокус на строке поиска
+            self.ui.searchLineEdit.clear()  # Очищаем строку поиска
+            self.ui.tabWidget.currentWidget().setFocus()  # Возвращаем фокус на список замечаний
+        elif self.ui.tagListWidget.hasFocus():  # Если фокус на списке тегов
+            self.ui.tagListWidget.clearSelection()  # Сбрасываем выделение в списке тегов
+            for i in range(self.ui.tagListWidget.count()):  # Сбрасываем все чекбоксы в списке тегов
+                item = self.ui.tagListWidget.item(i)
+                item.setCheckState(Qt.Unchecked)
+            self.ui.tabWidget.currentWidget().setFocus()  # Возвращаем фокус на список замечаний
+        else:  # Во всех прочих случаях
+            self.ui.tabWidget.currentWidget().clearSelection()  # Сбрасываем выделение в списке замечаний
 
     def update_window_title(self):
         """Обновляет заголовок окна, отображает название текущего файла и звёздочку."""
@@ -776,7 +798,12 @@ class MainWindow(QMainWindow):
             elif reply == QMessageBox.Cancel:
                 event.ignore()  # Отменяем закрытие окна
                 return
-        event.accept()  # Закрываем окно
+        # Сохраняем необходимые данные в настройках
+        self.settings.setValue("last_file", self.current_file)  # Сохраняем в настройках текущий файл как последний
+        self.settings.setValue("tag_panel_visible", self.ui.tagPanelWidget.isVisible())  # Видимость панели тегов
+        self.settings.setValue("tag_filter_mode", self.tag_filter_mode)  # Режим фильтрации по тегам: "AND" или "OR"
+        # Закрываем окно
+        event.accept()
 
 
 class LockedTabBar(QTabBar):
