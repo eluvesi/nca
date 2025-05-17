@@ -61,6 +61,7 @@ class MainWindow(QMainWindow):
         self.ui.tabAddButton.clicked.connect(self.add_tab)  # Кнопка "Добавить вкладку"
         self.ui.tabRemoveButton.clicked.connect(self.remove_tab)  # Кнопка "Удалить вкладку"
         self.ui.tabEditButton.clicked.connect(self.edit_tab)  # Кнопка "Редактировать вкладку"
+        self.ui.tabWidget.currentChanged.connect(self. tab_changed)  # При переходе на другую вкладку
         # Работа с замечаниями
         self.ui.remarkAddButton.clicked.connect(self.add_remark)  # Кнопка "Добавить замечание"
         self.ui.remarkRemoveButton.clicked.connect(self.remove_remark)  # Кнопка "Удалить выбранные замечания"
@@ -74,12 +75,7 @@ class MainWindow(QMainWindow):
         self.ui.tagPanelWidget.setVisible(False)  # Изначально панель скрыта
         self.ui.tagPanelButton.clicked.connect(self.toggle_tag_panel)  # Кнопка для сворачивания/разворачивания
 
-        # Выключение кнопок удаления и редактирования вкладки при переходе на вкладки "Все" или "Без категории"
-        self.ui.tabWidget.currentChanged.connect(self.toggle_tab_buttons)
-        # Включение/выключение кнопок взаимодействия с замечаниями при перемещении между вкладками
-        self.ui.tabWidget.currentChanged.connect(self.toggle_remark_buttons)
-
-        # Включение шорткатов
+        # Включаем шорткаты
         self.set_shortcuts()
 
         # Находим в настройках и открываем последний редактируемый файл
@@ -104,8 +100,10 @@ class MainWindow(QMainWindow):
         # Если успешно, то обновляем состояние
         if load_success:
             self.current_file = filename  # Устанавливаем файл в качестве текущего
+            self.settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего файла
             self.is_modified = False  # Файл только что загружен, изменений нет
             self.update_window_title()  # Обновляем заголовок окна
+            self.update_tag_list()  # Обновляем список на панели тегов
             self.statusBar().showMessage(f"Замечания загружены из {self.current_file}.", WAIT)
         else:
             self.statusBar().showMessage(f"Не удалось загрузить файл {self.current_file}.", WAIT)
@@ -129,6 +127,7 @@ class MainWindow(QMainWindow):
         self.remove_user_tabs()  # Удаляем все вкладки пользователя, и очищаем "Все" и "Без категории"
         self.is_modified = False  # Создан новый файл, изменений больше нет
         self.update_window_title()  # Обновляем заголовок окна
+        self.update_tag_list()  # Обновляем список на панели тегов
         self.statusBar().showMessage("Создан новый файл. Не забудьте сохранить изменения.", WAIT)
 
     def open_file(self):
@@ -164,6 +163,7 @@ class MainWindow(QMainWindow):
                     # Создаём элемент списка
                     item = QListWidgetItem(text)  # Текст замечания (очередная строка .txt-файла)
                     item.setData(Qt.UserRole, "Без категории")  # Категория (для .txt всегда "Без категории")
+                    item.setData(Qt.UserRole + 1, [])  # Теги (для .txt всегда пустой список)
                     # Добавляем этот элемент в два списка
                     self.uncategorizedListWidget.addItem(item)  # Добавляем в список на вкладке "Без категории"
                     self.summaryListWidget.addItem(item.clone())  # Клона добавляем в список на вкладке "Все"
@@ -211,7 +211,8 @@ class MainWindow(QMainWindow):
                 self.write_to_json(self.current_file)
             elif self.current_file.endswith(".txt"):  # Если .txt, произойдёт потеря категорий, проверим их наличие
                 has_categories = self.ui.tabWidget.tabBar().count() > 2  # Есть вкладки помимо "Все" и "Без категории"?
-                if not has_categories:  # Если таких вкладок нет, то записываем в .txt
+                has_tags = bool(self.get_tab_tags(0))  # Есть ли теги? (bool: непустой список - True, [] - False)
+                if not has_categories and not has_tags:  # Если вкладок и тегов нет, то записываем в .txt
                     self.write_to_txt(self.current_file)
                 else:  # Если они были, спрашиваем пользователя, не хочет ли он сменить формат на .json
                     reply = QMessageBox.question(
@@ -240,11 +241,9 @@ class MainWindow(QMainWindow):
                         self.write_to_txt(self.current_file)  # Записываем в .txt-файл
                     else:
                         return  # Пользователь отменил сохранение
-            # Обновляем состояние
-            self.is_modified = False  # Файл сохранён, изменений больше нет
-            self.update_window_title()  # Обновляем заголовок окна
+            self.load_file(self.current_file)  # На всякий случай перезагрузим файл после сохранения
         else:  # Если None, значит был создан новый файл
-            self.save_file_as()  # Предлагаем пользователю сохранить файл как (выбрать имя для сохранения)
+            self.save_file_as()  # Предлагаем пользователю выбрать имя для сохранения
 
     def save_file_as(self):
         """Открывает диалог для сохранения файла с новым именем. После сохранения загружает новый файл."""
@@ -259,7 +258,8 @@ class MainWindow(QMainWindow):
             elif file_ext == "Текстовые файлы (*.txt)":
                 # Если .txt, может произойти потеря категорий, проверим их наличие
                 has_categories = self.ui.tabWidget.tabBar().count() > 2  # Есть вкладки помимо "Все" и "Без категории"?
-                if not has_categories:  # Если таких вкладок нет, то записываем в .txt
+                has_tags = bool(self.get_tab_tags(0))  # Есть ли теги? (bool: непустой список - True, [] - False)
+                if not has_categories and not has_tags:  # Если таких вкладок нет, то записываем в .txt
                     self.write_to_txt(filename)
                 else:  # Если они были, спрашиваем пользователя, не хочет ли он сменить формат на .json
                     reply = QMessageBox.question(
@@ -286,10 +286,7 @@ class MainWindow(QMainWindow):
                         self.write_to_txt(filename)  # Записываем в .txt-файл
                     else:
                         return  # Пользователь отменил сохранение
-            # Обновляем состояние
-            self.current_file = filename  # Заменяем текущий файл на новый
-            self.settings.setValue("last_file", self.current_file)  # Запоминаем в качестве последнего открытого файла
-            self.load_file(self.current_file)  # При "сохранить как" мы по сути создаём новый файл, загрузим его заново
+            self.load_file(filename)  # На всякий случай перезагрузим файл после сохранения
 
     def write_to_txt(self, filename):
         """Записывает все замечания в .txt-файл. Информация о категориях не сохраняется."""
@@ -329,16 +326,18 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Ошибка при сохранении файла", f"Не удалось сохранить файл:\n{str(e)}")
 
     def revert_file(self):
-        """Отменяет все изменения в текущем файле, загружая его заново. Если текущего файла нет, то создаёт новый."""
-        # Если пользователь работал с каким-то файлом на компьютере, то перезагружаем этот файл
-        if self.current_file:
-            self.load_file(self.current_file)
-        # Если пользователь создал новый файл и вносил изменения туда, то сбрасываем все изменения
+        """Отменяет все изменения в текущем файле, если у текущего файла есть сохранённая версия."""
+        # Если пользователь работал с каким-то файлом на компьютере, и этот файл ещё на месте, то перезагружаем его
+        if self.current_file and os.path.exists(self.current_file):
+            self.load_file(self.current_file)  # Загружаем файл заново из сохранённой версии
+            self.statusBar().showMessage(f"Восстановлено последнее сохранённое состояние файла.", WAIT)
+        # Если пользователь работал с каким-то файлом на компьютере, и этого файла больше нет, то сообщаем об этом
+        elif self.current_file and not os.path.exists(self.current_file):
+            self.statusBar().showMessage(f"Файл не найден по старому пути, восстановить состояние не удалось.", WAIT)
+        # Если пользователь создал новый файл и вносил изменения туда, то сообщаем пользователю об этом
         else:
-            self.remove_user_tabs()  # Удаляем все вкладки пользователя, и очищаем "Все" и "Без категории"
-            self.is_modified = False  # Изменений больше нет
-            self.update_window_title()  # Обновляем заголовок окна
-        self.statusBar().showMessage("Все несохранённые изменения отменены. Состояние файла восстановлено.", WAIT)
+            self.statusBar().showMessage(f"Вы работаете с новым файлом, у него нет сохранённой копии.", WAIT)
+
 
     def add_remark(self):
         """Открывает диалог для добавления нового замечания в список. В качестве категории предлагает текущую."""
@@ -372,6 +371,7 @@ class MainWindow(QMainWindow):
         # Обновляем состояние
         self.is_modified = True  # Файл изменился
         self.update_window_title()  # Обновляем заголовок окна
+        self.update_tag_list()  # Обновляем список на панели тегов
         self.statusBar().showMessage("Добавлено новое замечание.", 3000)
 
     def remove_remark(self):
@@ -412,6 +412,7 @@ class MainWindow(QMainWindow):
         # Обновляем состояние
         self.is_modified = True  # Файл изменился
         self.update_window_title()  # Обновляем заголовок
+        self.update_tag_list()  # Обновляем список на панели тегов
         self.statusBar().showMessage("Выбранные замечания удалены.", WAIT)
 
     def edit_remark(self):
@@ -489,6 +490,7 @@ class MainWindow(QMainWindow):
             # Обновляем состояние
             self.is_modified = True  # Файл изменился
             self.update_window_title()  # Обновляем заголовок
+            self.update_tag_list()  # Обновляем список на панели тегов
             self.statusBar().showMessage("Замечание обновлено.", WAIT)
 
     def copy_remark(self):
@@ -550,6 +552,7 @@ class MainWindow(QMainWindow):
         # Обновляем состояние
         self.is_modified = True  # Файл изменился
         self.update_window_title()  # Обновляем заголовок
+        self.update_tag_list()  # Обновляем список на панели тегов
         self.statusBar().showMessage(f"Вкладка \"{tab_name}\" удалена.", WAIT)
 
     def edit_tab(self):
@@ -676,6 +679,13 @@ class MainWindow(QMainWindow):
             self.ui.tagPanelWidget.setVisible(True)  # Разворачиваем панель
             self.ui.tagPanelButton.setChecked(True)  # Меняем состояние кнопки
 
+    def tab_changed(self):
+        self.toggle_tab_buttons()  # Вкл/выкл кнопки редактирования и удаления вкладки
+        self.toggle_remark_buttons()  # Вкл/выкл кнопки взаимодействия с замечаниями
+        self.ui.searchLineEdit.clear()  # Очищаем строку поискового запроса
+        self.process_search()  # Производим поиск с пустым поисковым запросом, чтобы отобразить скрытые элементы
+        self.update_tag_list()  # Обновляем список тегов
+
     def process_search(self):
         """Если есть текст в поисковой строке, фильтрует список на текущей вкладке. Если нет - возвращает как было."""
         # Определяем поисковый запрос и переводим его в нижний регистр
@@ -725,15 +735,26 @@ class MainWindow(QMainWindow):
         modify_marker = "*" if self.is_modified else ""
         self.setWindowTitle(f"{file_name}{modify_marker} – {base_title}")
 
-    def get_all_tags(self):
-        """Возвращает отсортированный список уникальных тегов. Собирает их из замечаний-клонов со вкладки "Все"."""
-        tags = set()
-        for i in range(self.summaryListWidget.count()):
-            item = self.summaryListWidget.item(i)
+    def get_tab_tags(self, tab_index):
+        """Возвращает отсортированный список уникальных тегов для замечаний с текущей вкладки."""
+        list_widget = self.ui.tabWidget.widget(tab_index)  # Виджет списка со вкладки с индексом tab_index
+        tags = set()  # Используем set(), чтобы отбрасывать повторы
+        for i in range(list_widget.count()):
+            item = list_widget.item(i)
             item_tags = item.data(Qt.UserRole + 1)
             if item_tags:
                 tags.update(item_tags)
         return sorted(tags)
+
+    def update_tag_list(self):
+        """Обновляет список тегов на панели тегов (tagListWidget)."""
+        tags = self.get_tab_tags(self.ui.tabWidget.currentIndex())  # Получаем отсортированный список уникальных тегов
+        self.ui.tagListWidget.clear()   # Очищаем список перед обновлением
+        for tag in tags:
+            list_item = QListWidgetItem(tag)  # Создаём очередной элемент списка
+            list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)  # Добавляем элементу списка чекбокс
+            list_item.setCheckState(Qt.Unchecked)  # По умолчанию чекбокс не установлен
+            self.ui.tagListWidget.addItem(list_item)
 
     def closeEvent(self, event):
         """Запрос подтверждения перед закрытием, если есть несохранённые изменения."""
