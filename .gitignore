@@ -1,9 +1,2 @@
 .idea/
 __pycache__/
-
-*.bat
-*.txt
-*.json
-
-!examples/*.txt
-!examples/*.json
